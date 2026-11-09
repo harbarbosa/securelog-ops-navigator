@@ -22,6 +22,11 @@ import { Route as AdminMonitoramentoRouteImport } from './routes/admin.monitoram
 import { Route as AdminPesquisarRouteImport } from './routes/admin.pesquisar'
 import { Route as AdminRetencaoRouteImport } from './routes/admin.retencao'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
+import { Route as MobileIndexRouteImport } from './routes/mobile.index'
+import { Route as MobileLeituraRouteImport } from './routes/mobile.leitura'
+import { Route as MobileLocalRouteImport } from './routes/mobile.local'
+import { Route as MobilePendentesRouteImport } from './routes/mobile.pendentes'
+import { Route as MobilePerfilRouteImport } from './routes/mobile.perfil'
 import { Route as AdminLeiturasIdRouteImport } from './routes/admin.leituras_.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -89,6 +94,31 @@ const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AdminRoute,
 } as any)
+const MobileIndexRoute = MobileIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileLeituraRoute = MobileLeituraRouteImport.update({
+  id: '/leitura',
+  path: '/leitura',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobileLocalRoute = MobileLocalRouteImport.update({
+  id: '/local',
+  path: '/local',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobilePendentesRoute = MobilePendentesRouteImport.update({
+  id: '/pendentes',
+  path: '/pendentes',
+  getParentRoute: () => MobileRoute,
+} as any)
+const MobilePerfilRoute = MobilePerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
+  getParentRoute: () => MobileRoute,
+} as any)
 const AdminLeiturasIdRoute = AdminLeiturasIdRouteImport.update({
   id: '/leituras_/$id',
   path: '/leituras/$id',
@@ -98,7 +128,7 @@ const AdminLeiturasIdRoute = AdminLeiturasIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/mobile': typeof MobileRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/admin/cameras': typeof AdminCamerasRoute
   '/admin/dispositivos': typeof AdminDispositivosRoute
   '/admin/gravadores': typeof AdminGravadoresRoute
@@ -108,12 +138,16 @@ export interface FileRoutesByFullPath {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/leitura': typeof MobileLeituraRoute
+  '/mobile/local': typeof MobileLocalRoute
+  '/mobile/pendentes': typeof MobilePendentesRoute
+  '/mobile/perfil': typeof MobilePerfilRoute
   '/admin/': typeof AdminIndexRoute
+  '/mobile/': typeof MobileIndexRoute
   '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/mobile': typeof MobileRoute
   '/admin/cameras': typeof AdminCamerasRoute
   '/admin/dispositivos': typeof AdminDispositivosRoute
   '/admin/gravadores': typeof AdminGravadoresRoute
@@ -123,14 +157,19 @@ export interface FileRoutesByTo {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/leitura': typeof MobileLeituraRoute
+  '/mobile/local': typeof MobileLocalRoute
+  '/mobile/pendentes': typeof MobilePendentesRoute
+  '/mobile/perfil': typeof MobilePerfilRoute
   '/admin': typeof AdminIndexRoute
+  '/mobile': typeof MobileIndexRoute
   '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/mobile': typeof MobileRoute
+  '/mobile': typeof MobileRouteWithChildren
   '/admin/cameras': typeof AdminCamerasRoute
   '/admin/dispositivos': typeof AdminDispositivosRoute
   '/admin/gravadores': typeof AdminGravadoresRoute
@@ -140,7 +179,12 @@ export interface FileRoutesById {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/leitura': typeof MobileLeituraRoute
+  '/mobile/local': typeof MobileLocalRoute
+  '/mobile/pendentes': typeof MobilePendentesRoute
+  '/mobile/perfil': typeof MobilePerfilRoute
   '/admin/': typeof AdminIndexRoute
+  '/mobile/': typeof MobileIndexRoute
   '/admin/leituras_/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRouteTypes {
@@ -158,12 +202,16 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/leitura'
+    | '/mobile/local'
+    | '/mobile/pendentes'
+    | '/mobile/perfil'
     | '/admin/'
+    | '/mobile/'
     | '/admin/leituras/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/mobile'
     | '/admin/cameras'
     | '/admin/dispositivos'
     | '/admin/gravadores'
@@ -173,7 +221,12 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/leitura'
+    | '/mobile/local'
+    | '/mobile/pendentes'
+    | '/mobile/perfil'
     | '/admin'
+    | '/mobile'
     | '/admin/leituras/$id'
   id:
     | '__root__'
@@ -189,14 +242,19 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/leitura'
+    | '/mobile/local'
+    | '/mobile/pendentes'
+    | '/mobile/perfil'
     | '/admin/'
+    | '/mobile/'
     | '/admin/leituras_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  MobileRoute: typeof MobileRoute
+  MobileRoute: typeof MobileRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +350,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/mobile/': {
+      id: '/mobile/'
+      path: '/'
+      fullPath: '/mobile/'
+      preLoaderRoute: typeof MobileIndexRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/leitura': {
+      id: '/mobile/leitura'
+      path: '/leitura'
+      fullPath: '/mobile/leitura'
+      preLoaderRoute: typeof MobileLeituraRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/local': {
+      id: '/mobile/local'
+      path: '/local'
+      fullPath: '/mobile/local'
+      preLoaderRoute: typeof MobileLocalRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/pendentes': {
+      id: '/mobile/pendentes'
+      path: '/pendentes'
+      fullPath: '/mobile/pendentes'
+      preLoaderRoute: typeof MobilePendentesRouteImport
+      parentRoute: typeof MobileRoute
+    }
+    '/mobile/perfil': {
+      id: '/mobile/perfil'
+      path: '/perfil'
+      fullPath: '/mobile/perfil'
+      preLoaderRoute: typeof MobilePerfilRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/admin/leituras_/$id': {
       id: '/admin/leituras_/$id'
       path: '/leituras/$id'
@@ -332,10 +425,29 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface MobileRouteChildren {
+  MobileLeituraRoute: typeof MobileLeituraRoute
+  MobileLocalRoute: typeof MobileLocalRoute
+  MobilePendentesRoute: typeof MobilePendentesRoute
+  MobilePerfilRoute: typeof MobilePerfilRoute
+  MobileIndexRoute: typeof MobileIndexRoute
+}
+
+const MobileRouteChildren: MobileRouteChildren = {
+  MobileLeituraRoute: MobileLeituraRoute,
+  MobileLocalRoute: MobileLocalRoute,
+  MobilePendentesRoute: MobilePendentesRoute,
+  MobilePerfilRoute: MobilePerfilRoute,
+  MobileIndexRoute: MobileIndexRoute,
+}
+
+const MobileRouteWithChildren =
+  MobileRoute._addFileChildren(MobileRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  MobileRoute: MobileRoute,
+  MobileRoute: MobileRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

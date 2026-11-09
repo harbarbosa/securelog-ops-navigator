@@ -33,7 +33,7 @@ const statusMap: Record<Status, { label: string; cls: string }> = {
   falha: { label: "Falha", cls: "bg-danger-soft text-destructive" },
   inativo: { label: "Inativo", cls: "bg-muted text-muted-foreground" },
 };
-export function StatusBadge({ status, label }: { status: Status; label?: string }) {
+export function StatusBadge({ status, label }: { status: Status; label?: string | undefined }) {
   const s = statusMap[status];
   return (
     <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium", s.cls)}>

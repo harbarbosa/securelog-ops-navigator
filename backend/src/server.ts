@@ -29,7 +29,8 @@ await app.register(rateLimit,{global:true,max:120,timeWindow:'1 minute'});
 app.setErrorHandler((error,req,reply)=>{
  req.log.error(error);
  if(error instanceof z.ZodError){return reply.code(400).send({error:'Dados inválidos',details:error.flatten()});}
- return reply.code(error.statusCode&&error.statusCode<500?error.statusCode:500).send({error:error.statusCode&&error.statusCode<500?error.message:'Erro interno'});
+ const status=('statusCode' in Object(error))?Number((error as {statusCode?:number}).statusCode):500;
+ return reply.code(status>=400&&status<500?status:500).send({error:status>=400&&status<500&&error instanceof Error?error.message:'Erro interno'});
 });
 app.get('/api/health',async()=>{await dbHealth();return {status:'ok',service:'securelog-api'};});
 app.post('/api/auth/login',{config:{rateLimit:{max:10,timeWindow:'15 minutes'}}},async(req,reply)=>{

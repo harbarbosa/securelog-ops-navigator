@@ -8,7 +8,8 @@ import {z} from 'zod';
 import {pool,dbHealth} from './db.js';
 import {createSession,hashToken,requireUser,requireRole} from './auth.js';
 import {registerCrud} from './crud.js';
-import {readingInput} from './validation.js';
+import {registerDeviceReadings} from './device-readings.js';
+import {registerReadingSearch} from './reading-access.js';
 const app=Fastify({logger:true,bodyLimit:1024*1024});
 const origin=process.env.CORS_ORIGIN;
 if(!origin) throw new Error('CORS_ORIGIN missing');
@@ -55,24 +56,10 @@ app.get('/api/:entity',async(req,reply)=>{
  const count=await pool.query(`SELECT count(*)::int AS total FROM ${cfg.table}`);
  return {items:rows,total:count.rows[0].total,limit:query.limit,offset:query.offset};
 });
-app.get('/api/readings',async(req,reply)=>{
- const user=await requireUser(req,reply);if(!user)return;
- const q=z.object({code:z.string().optional(),limit:z.coerce.number().int().min(1).max(100).default(25),offset:z.coerce.number().int().min(0).default(0)}).parse(req.query);
- const params=q.code?['%'+q.code+'%']:[];const where=q.code?'WHERE r.code ILIKE $1':'';
- const sql=`SELECT r.id,r.code,r.occurred_at,r.received_at,r.device_id,r.location_id,r.camera_id,r.user_id FROM readings r ${where} ORDER BY r.occurred_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`;
- const {rows}=await pool.query(sql,[...params,q.limit,q.offset]);
- const count=await pool.query(`SELECT count(*)::int AS total FROM readings r ${where}`,params);
- return {items:rows,total:count.rows[0].total,limit:q.limit,offset:q.offset};
-});
-app.post('/api/readings',async(req,reply)=>{
- const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin','supervisor','operator'],reply))return;
- const b=readingInput.parse(req.body);
- const device=await pool.query('SELECT id,location_id,active FROM devices WHERE id=$1',[b.device_id]);
- if(!device.rows[0]?.active||device.rows[0].location_id!==b.location_id)return reply.code(400).send({error:'Dispositivo inativo ou local incompatível'});
- const {rows}=await pool.query(`INSERT INTO readings(device_event_id,device_id,user_id,location_id,camera_id,code,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(device_id,device_event_id) DO NOTHING RETURNING id`,[b.device_event_id,b.device_id,user.id,b.location_id,b.camera_id??null,b.code,b.occurred_at]);
- if(!rows[0])return {duplicate:true};
- return reply.code(201).send({id:rows[0].id,duplicate:false});
-});
+// Reading ingestion is restricted to authenticated device credentials.
+// Search is restricted by user location assignments.
 await registerCrud(app);
+await registerDeviceReadings(app);
+await registerReadingSearch(app);
 const port=Number(process.env.PORT??3333);
 await app.listen({host:process.env.HOST??'127.0.0.1',port});

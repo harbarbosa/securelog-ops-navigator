@@ -1,60 +1,38 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, Field, PageHeader, Select, StatusBadge, Table, Td, Th, meta } from "@/components/sl/ui";
-import { FormDialog } from "@/components/sl/crud";
-import { NOW, dispositivos as seed, fmt, locais, usuarios } from "@/lib/mock";
-
-export const Route = createFileRoute("/admin/dispositivos")({
-  head: () => meta("Dispositivos", "Cadastro dos leitores Zebra, status de comunicação e pendências."),
-  component: Dispositivos,
-});
-type D = (typeof seed)[number];
-const blank: D = { id: "", nome: "", codigo: "", serie: "", local: locais[0]!.nome, usuario: "—", ultima: NOW, pendentes: 0, status: "online" };
-const label: Record<string, string> = { pendente: "Com pendências" };
-
-function Dispositivos() {
-  const [rows, setRows] = useState(seed);
-  const [edit, setEdit] = useState<D | null>(null);
-  const save = () => {
-    if (!edit!.nome || !edit!.codigo) { toast.error("Preencha nome e código"); return; }
-    setRows(edit!.id ? rows.map((r) => (r.id === edit!.id ? edit! : r)) : [...rows, { ...edit!, id: crypto.randomUUID() }]);
-    toast.success("Dispositivo salvo"); setEdit(null);
-  };
-  const count = (s: string) => rows.filter((r) => r.status === s).length;
-  return (
-    <>
-      <PageHeader title="Dispositivos e leitores" crumbs={["Configurações", "Dispositivos"]} actions={<Button onClick={() => setEdit(blank)}><Plus className="h-4 w-4" />Novo leitor</Button>} />
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
-        {(["online", "offline", "sincronizando", "pendente"] as const).map((s) => (
-          <div key={s} className="card-surface flex items-center justify-between p-4"><StatusBadge status={s} label={label[s]} /><span className="text-2xl font-semibold text-primary">{count(s)}</span></div>
-        ))}
-      </div>
-      <Card>
-        <Table head={<><Th>Nome do leitor</Th><Th>Código / série</Th><Th>Local atual</Th><Th>Usuário vinculado</Th><Th>Última comunicação</Th><Th>Pendentes</Th><Th>Status</Th><Th /></>}>
-          {rows.map((r) => (
-            <tr key={r.id} className="hover:bg-muted/40">
-              <Td className="font-medium">{r.nome}</Td><Td className="font-mono text-xs">{r.codigo}<br /><span className="text-muted-foreground">{r.serie}</span></Td>
-              <Td>{r.local}</Td><Td>{r.usuario}</Td><Td>{fmt(r.ultima)}</Td><Td className={r.pendentes ? "font-semibold text-warning" : ""}>{r.pendentes}</Td>
-              <Td><StatusBadge status={r.status} label={label[r.status]} /></Td>
-              <Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={() => setEdit(r)}><Pencil className="h-4 w-4" /></Button></Td>
-            </tr>
-          ))}
-        </Table>
-      </Card>
-      {edit && (
-        <FormDialog open onOpenChange={() => setEdit(null)} title={edit.id ? "Editar leitor" : "Novo leitor"} onSave={save}>
-          <Field label="Nome"><Input value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} /></Field>
-          <Field label="Código do dispositivo"><Input value={edit.codigo} onChange={(e) => setEdit({ ...edit, codigo: e.target.value })} /></Field>
-          <Field label="Número de série"><Input value={edit.serie} onChange={(e) => setEdit({ ...edit, serie: e.target.value })} /></Field>
-          <Field label="Local permitido"><Select value={edit.local} onChange={(v) => setEdit({ ...edit, local: v })} options={locais.map((l) => l.nome)} /></Field>
-          <Field label="Usuário responsável"><Select value={edit.usuario} onChange={(v) => setEdit({ ...edit, usuario: v })} options={["—", ...usuarios.map((u) => u.nome)]} /></Field>
-          <Field label="Status"><Select value={edit.status} onChange={(v) => setEdit({ ...edit, status: v as D["status"] })} options={["online", "offline", "sincronizando", "pendente", "inativo"]} /></Field>
-        </FormDialog>
-      )}
-    </>
-  );
+import {createFileRoute} from "@tanstack/react-router";
+import {useEffect,useState} from "react";
+import {Pencil,Plus,Power} from "lucide-react";
+import {toast} from "sonner";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Card,Field,PageHeader,Table,Td,Th,meta} from "@/components/sl/ui";
+import {FormDialog} from "@/components/sl/crud";
+import {securelog} from "@/lib/securelog-api";
+export const Route=createFileRoute("/admin/dispositivos")({head:()=>meta("Dispositivos","Cadastro dos coletores Zebra."),component:Dispositivos});
+type Device={id:string;name:string;serial_number:string;location_id:string|null;active:boolean;last_seen_at:string|null};
+type Location={id:string;name:string;active:boolean};
+const blank={name:"",serial_number:"",location_id:"",active:true};
+function Dispositivos(){
+ const [rows,setRows]=useState<Device[]>([]);
+ const [locations,setLocations]=useState<Location[]>([]);
+ const [edit,setEdit]=useState<(typeof blank&{id?:string})|null>(null);
+ const [loading,setLoading]=useState(true);
+ const load=async()=>{setLoading(true);try{const [d,l]=await Promise.all([securelog.list<Device>("devices",100),securelog.list<Location>("locations",100)]);setRows(d.items);setLocations(l.items);}catch(e){toast.error(e instanceof Error?e.message:"Falha ao carregar dispositivos");}finally{setLoading(false);}};
+ useEffect(()=>{void load();},[]);
+ const save=async()=>{if(!edit?.name.trim()||!edit.serial_number.trim())return toast.error("Informe nome e número de série");
+  const data={name:edit.name.trim(),serial_number:edit.serial_number.trim(),location_id:edit.location_id||null,active:edit.active};
+  try{if(edit.id)await securelog.update("devices",edit.id,data);else await securelog.create("devices",data);toast.success("Dispositivo salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar dispositivo");}
+ };
+ const toggle=async(r:Device)=>{try{await securelog.update("devices",r.id,{active:!r.active});await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao atualizar");}};
+ return <>
+  <PageHeader title="Dispositivos e leitores" crumbs={["Configurações","Dispositivos"]} actions={<Button onClick={()=>setEdit({...blank})}><Plus className="h-4 w-4"/>Novo leitor</Button>}/>
+  <Card><Table head={<><Th>Nome do leitor</Th><Th>Número de série</Th><Th>Local</Th><Th>Última comunicação</Th><Th>Status cadastral</Th><Th>Ações</Th></>}>
+  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td className="font-mono text-xs">{r.serial_number}</Td><Td>{locations.find(l=>l.id===r.location_id)?.name??"Sem local"}</Td><Td>{r.last_seen_at?new Date(r.last_seen_at).toLocaleString("pt-BR"):"Nunca"}</Td><Td>{r.active?"Ativo":"Inativo"}</Td><Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,serial_number:r.serial_number,location_id:r.location_id??"",active:r.active})}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label="Ativar ou desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button></Td></tr>)}
+  </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&!rows.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum leitor cadastrado.</p>}</Card>
+  {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar leitor":"Novo leitor"} onSave={()=>void save()}>
+  <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>
+  <Field label="Número de série"><Input value={edit.serial_number} onChange={e=>setEdit({...edit,serial_number:e.target.value})}/></Field>
+  <Field label="Local permitido"><select className="w-full rounded-md border bg-background p-2" value={edit.location_id} onChange={e=>setEdit({...edit,location_id:e.target.value})}><option value="">Nenhum</option>{locations.filter(l=>l.active||l.id===edit.location_id).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></Field>
+  <p className="text-xs text-muted-foreground sm:col-span-2">Comunicação e sincronização com o Zebra serão habilitadas em uma próxima etapa.</p>
+  </FormDialog>}
+ </>;
 }

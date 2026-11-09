@@ -1,0 +1,30 @@
+{
+  "name": "securelog-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx src/migrate.ts",
+    "seed:admin": "tsx src/seed-admin.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.1.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "argon2": "^0.41.1",
+    "dotenv": "^16.6.1",
+    "fastify": "^5.3.0",
+    "pg": "^8.16.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/pg": "^8.15.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  }
+}

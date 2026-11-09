@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/migrate.ts",
-    "seed:admin": "tsx src/seed-admin.ts"
+    "seed:admin": "tsx src/seed-admin.ts",
+    "device:token": "tsx src/issue-device-token.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.1.0",

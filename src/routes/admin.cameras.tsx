@@ -18,7 +18,7 @@ function Cameras(){
  const [loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);try{const [c,r]=await Promise.all([securelog.list<Camera>("cameras",100),securelog.list<Recorder>("recorders",100)]);setRows(c.items);setRecorders(r.items);}catch(e){toast.error(e instanceof Error?e.message:"Falha ao carregar câmeras");}finally{setLoading(false);}};
  useEffect(()=>{void load();},[]);
- const save=async()=>{if(!edit?.name.trim()||!edit.recorder_id)return toast.error("Informe nome e gravador");
+  const save=async()=>{if(!edit?.name.trim()||!edit.recorder_id){toast.error("Informe nome e gravador");return;}
   const data={name:edit.name.trim(),recorder_id:edit.recorder_id,channel:edit.channel,active:edit.active};
   try{if(edit.id)await securelog.update("cameras",edit.id,data);else await securelog.create("cameras",data);toast.success("Câmera salva");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar câmera");}
  };

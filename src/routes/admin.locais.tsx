@@ -20,7 +20,7 @@ function Locais(){
  const [loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);try{const [l,c]=await Promise.all([securelog.list<Location>("locations",100),securelog.list<Camera>("cameras",100)]);setRows(l.items);setCameras(c.items);}catch(e){toast.error(e instanceof Error?e.message:"Erro ao carregar locais");}finally{setLoading(false);}};
  useEffect(()=>{void load();},[]);
- const save=async()=>{if(!edit?.name.trim())return toast.error("Informe o nome do local");
+  const save=async()=>{if(!edit?.name.trim()){toast.error("Informe o nome do local");return;}
   const data={name:edit.name.trim(),description:edit.description||null,primary_camera_id:edit.primary_camera_id||null,active:edit.active};
   try{if(edit.id)await securelog.update("locations",edit.id,data);else await securelog.create("locations",data);toast.success("Local salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar");}
  };

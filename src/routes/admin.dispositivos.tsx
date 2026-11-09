@@ -18,7 +18,7 @@ function Dispositivos(){
  const [loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);try{const [d,l]=await Promise.all([securelog.list<Device>("devices",100),securelog.list<Location>("locations",100)]);setRows(d.items);setLocations(l.items);}catch(e){toast.error(e instanceof Error?e.message:"Falha ao carregar dispositivos");}finally{setLoading(false);}};
  useEffect(()=>{void load();},[]);
- const save=async()=>{if(!edit?.name.trim()||!edit.serial_number.trim())return toast.error("Informe nome e número de série");
+  const save=async()=>{if(!edit?.name.trim()||!edit.serial_number.trim()){toast.error("Informe nome e número de série");return;}
   const data={name:edit.name.trim(),serial_number:edit.serial_number.trim(),location_id:edit.location_id||null,active:edit.active};
   try{if(edit.id)await securelog.update("devices",edit.id,data);else await securelog.create("devices",data);toast.success("Dispositivo salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar dispositivo");}
  };

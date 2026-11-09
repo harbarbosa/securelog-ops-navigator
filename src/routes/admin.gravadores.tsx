@@ -16,7 +16,7 @@ function Gravadores(){
  const [loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);try{setRows((await securelog.list<Recorder>("recorders",100)).items);}catch(e){toast.error(e instanceof Error?e.message:"Erro ao carregar");}finally{setLoading(false);}};
  useEffect(()=>{void load();},[]);
- const save=async()=>{if(!edit?.name.trim()||!edit.host.trim())return toast.error("Informe nome e endereço");
+  const save=async()=>{if(!edit?.name.trim()||!edit.host.trim()){toast.error("Informe nome e endereço");return;}
   const data={name:edit.name.trim(),host:edit.host.trim(),port:edit.port,protocol:edit.protocol,active:edit.active};
   try{if(edit.id)await securelog.update("recorders",edit.id,data);else await securelog.create("recorders",data);toast.success("Gravador salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar");}
  };

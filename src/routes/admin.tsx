@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { securelog, type SecureLogUser } from "@/lib/securelog-api";
 import { Bell, Camera, ChevronDown, Cpu, HardDrive, LayoutDashboard, ListChecks, LogOut, MapPin, Menu, Activity, Search, Settings, Smartphone, Trash2, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -56,6 +57,14 @@ function AdminLayout() {
   const [mob, setMob] = useState(false);
   const [sair, setSair] = useState(false);
   const nav = useNavigate();
+  const [currentUser, setCurrentUser] = useState<SecureLogUser | null>(null);
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    let mounted = true;
+    securelog.me().then(({user}) => { if (mounted) setCurrentUser(user); }).catch(() => { if (mounted) nav({to:"/"}); }).finally(() => { if (mounted) setChecking(false); });
+    return () => { mounted = false; };
+  }, [nav]);
+  if (checking || !currentUser) return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Verificando acesso...</div>;
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 lg:block"><Nav /></aside>
@@ -85,16 +94,16 @@ function AdminLayout() {
               </PopoverContent>
             </Popover>
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium leading-tight">Henrique Barbosa</p>
-              <p className="text-xs text-muted-foreground">Administrador</p>
+              <p className="text-sm font-medium leading-tight">{currentUser.name}</p>
+              <p className="text-xs text-muted-foreground">{currentUser.role}</p>
             </div>
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">HB</div>
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">{currentUser.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()}</div>
             <Button variant="ghost" size="icon" onClick={() => setSair(true)} aria-label="Sair"><LogOut className="h-4 w-4" /></Button>
           </div>
         </header>
         <main className="mx-auto max-w-[1500px] p-4 lg:p-6"><Outlet /></main>
       </div>
-      <Confirm open={sair} onOpenChange={setSair} title="Sair do SecureLog?" description="Sua sessão será encerrada neste navegador." confirmLabel="Sair" onConfirm={() => nav({ to: "/" })} />
+      <Confirm open={sair} onOpenChange={setSair} title="Sair do SecureLog?" description="Sua sessão será encerrada neste navegador." confirmLabel="Sair" onConfirm={async () => { await securelog.logout().catch(() => undefined); nav({ to: "/" }); }} />
     </div>
   );
 }

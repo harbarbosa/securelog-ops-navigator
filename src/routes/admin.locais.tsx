@@ -1,77 +1,40 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Eye, Pencil, Plus, Power } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Card, CameraFrame, Confirm, Field, PageHeader, Select, StatusBadge, Table, Td, Th, meta } from "@/components/sl/ui";
-import { FormDialog } from "@/components/sl/crud";
-import { NOW, cameras, fmt, gravadores, locais as seed } from "@/lib/mock";
+import {createFileRoute} from "@tanstack/react-router";
+import {useEffect,useState} from "react";
+import {Pencil,Plus,Power} from "lucide-react";
+import {toast} from "sonner";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Textarea} from "@/components/ui/textarea";
+import {Card,Field,PageHeader,Table,Td,Th,meta} from "@/components/sl/ui";
+import {FormDialog} from "@/components/sl/crud";
+import {securelog} from "@/lib/securelog-api";
 
-export const Route = createFileRoute("/admin/locais")({
-  head: () => meta("Locais", "Cadastro de locais de operação e a câmera que registra cada leitura."),
-  component: Locais,
-});
-type L = (typeof seed)[number];
-const blank: L = { id: "", nome: "", descricao: "", camera: cameras[0]!.nome, gravador: gravadores[0]!.nome, dispositivos: 0, status: "ativo", ultima: NOW };
-
-function Locais() {
-  const [rows, setRows] = useState(seed);
-  const [edit, setEdit] = useState<L | null>(null);
-  const [toggle, setToggle] = useState<L | null>(null);
-  const [view, setView] = useState<L | null>(null);
-  const save = () => {
-    if (!edit!.nome) { toast.error("Informe o nome do local"); return; }
-    setRows(edit!.id ? rows.map((r) => (r.id === edit!.id ? edit! : r)) : [...rows, { ...edit!, id: crypto.randomUUID() }]);
-    toast.success(edit!.id ? "Local atualizado" : "Local cadastrado");
-    setEdit(null);
-  };
-  return (
-    <>
-      <PageHeader title="Locais" crumbs={["Locais"]} actions={<Button onClick={() => setEdit(blank)}><Plus className="h-4 w-4" />Novo local</Button>} />
-      <p className="mb-4 text-sm text-muted-foreground">Cada local tem uma câmera principal: toda leitura feita nele é vinculada a essa câmera e ao gravador.</p>
-      <Card>
-        <Table head={<><Th>Nome do local</Th><Th>Descrição</Th><Th>Câmera</Th><Th>Gravador</Th><Th>Dispositivos</Th><Th>Status</Th><Th>Última atividade</Th><Th className="text-right">Ações</Th></>}>
-          {rows.map((r) => (
-            <tr key={r.id} className="hover:bg-muted/40">
-              <Td className="font-medium">{r.nome}</Td><Td className="text-muted-foreground">{r.descricao}</Td><Td>{r.camera}</Td><Td>{r.gravador}</Td><Td>{r.dispositivos}</Td>
-              <Td><StatusBadge status={r.status} /></Td><Td>{fmt(r.ultima)}</Td>
-              <Td className="text-right">
-                <Button size="icon" variant="ghost" aria-label="Ver detalhes" onClick={() => setView(r)}><Eye className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" aria-label="Editar" onClick={() => setEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" aria-label="Ativar/desativar" onClick={() => setToggle(r)}><Power className="h-4 w-4" /></Button>
-              </Td>
-            </tr>
-          ))}
-        </Table>
-      </Card>
-      {edit && (
-        <FormDialog open onOpenChange={() => setEdit(null)} title={edit.id ? "Editar local" : "Novo local"} onSave={save}>
-          <Field label="Nome" className="sm:col-span-2"><Input value={edit.nome} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} /></Field>
-          <Field label="Descrição" className="sm:col-span-2"><Textarea value={edit.descricao} onChange={(e) => setEdit({ ...edit, descricao: e.target.value })} /></Field>
-          <Field label="Câmera principal"><Select value={edit.camera} onChange={(v) => setEdit({ ...edit, camera: v })} options={cameras.map((c) => c.nome)} /></Field>
-          <Field label="Gravador relacionado"><Select value={edit.gravador} onChange={(v) => setEdit({ ...edit, gravador: v })} options={gravadores.map((g) => g.nome)} /></Field>
-          <Field label="Status"><Select value={edit.status} onChange={(v) => setEdit({ ...edit, status: v as L["status"] })} options={["ativo", "inativo"]} /></Field>
-        </FormDialog>
-      )}
-      <Confirm open={!!toggle} onOpenChange={() => setToggle(null)} title={toggle?.status === "ativo" ? "Desativar local?" : "Ativar local?"}
-        description={`O local "${toggle?.nome}" ${toggle?.status === "ativo" ? "deixará de aparecer no coletor." : "voltará a ficar disponível no coletor."}`}
-        onConfirm={() => { setRows(rows.map((r) => (r.id === toggle!.id ? { ...r, status: r.status === "ativo" ? "inativo" : "ativo" } : r))); toast.success("Status alterado"); }} />
-      <Sheet open={!!view} onOpenChange={() => setView(null)}>
-        <SheetContent className="w-full sm:max-w-md">
-          <SheetHeader><SheetTitle>{view?.nome}</SheetTitle></SheetHeader>
-          {view && (
-            <div className="space-y-4 px-4">
-              <CameraFrame camera={view.camera} time={NOW} offline={view.gravador === "DVR-EXP-01"} />
-              {[["Descrição", view.descricao], ["Câmera", view.camera], ["Gravador", view.gravador], ["Dispositivos", String(view.dispositivos)], ["Última atividade", fmt(view.ultima)]].map(([k, v]) => (
-                <div key={k} className="flex justify-between border-b pb-2 text-sm"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>
-              ))}
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
-    </>
-  );
+export const Route=createFileRoute("/admin/locais")({head:()=>meta("Locais","Cadastro de locais operacionais."),component:Locais});
+type Location={id:string;name:string;description:string|null;primary_camera_id:string|null;active:boolean};
+type Camera={id:string;name:string};
+const blank={name:"",description:"",primary_camera_id:"",active:true};
+function Locais(){
+ const [rows,setRows]=useState<Location[]>([]);
+ const [cameras,setCameras]=useState<Camera[]>([]);
+ const [edit,setEdit]=useState<(typeof blank & {id?:string})|null>(null);
+ const [loading,setLoading]=useState(true);
+ const load=async()=>{setLoading(true);try{const [l,c]=await Promise.all([securelog.list<Location>("locations",100),securelog.list<Camera>("cameras",100)]);setRows(l.items);setCameras(c.items);}catch(e){toast.error(e instanceof Error?e.message:"Erro ao carregar locais");}finally{setLoading(false);}};
+ useEffect(()=>{void load();},[]);
+ const save=async()=>{if(!edit?.name.trim())return toast.error("Informe o nome do local");
+  const data={name:edit.name.trim(),description:edit.description||null,primary_camera_id:edit.primary_camera_id||null,active:edit.active};
+  try{if(edit.id)await securelog.update("locations",edit.id,data);else await securelog.create("locations",data);toast.success("Local salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar");}
+ };
+ const toggle=async(row:Location)=>{try{await securelog.update("locations",row.id,{active:!row.active});toast.success("Status atualizado");await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao alterar status");}};
+ return <>
+  <PageHeader title="Locais" crumbs={["Locais"]} actions={<Button onClick={()=>setEdit({...blank})}><Plus className="h-4 w-4"/>Novo local</Button>}/>
+  <p className="mb-4 text-sm text-muted-foreground">Locais cadastrados no banco de dados SecureLog.</p>
+  <Card><Table head={<><Th>Nome</Th><Th>Descrição</Th><Th>Câmera principal</Th><Th>Status</Th><Th className="text-right">Ações</Th></>}>
+  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td>{r.description||"—"}</Td><Td>{cameras.find(c=>c.id===r.primary_camera_id)?.name||"—"}</Td><Td>{r.active?"Ativo":"Inativo"}</Td><Td className="text-right"><Button variant="ghost" size="icon" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,description:r.description||"",primary_camera_id:r.primary_camera_id||"",active:r.active})}><Pencil className="h-4 w-4"/></Button><Button variant="ghost" size="icon" aria-label="Ativar ou desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button></Td></tr>)}
+  </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&rows.length===0&&<p className="p-4 text-sm text-muted-foreground">Nenhum local cadastrado.</p>}</Card>
+  {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar local":"Novo local"} onSave={()=>void save()}>
+   <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>
+   <Field label="Descrição"><Textarea value={edit.description} onChange={e=>setEdit({...edit,description:e.target.value})}/></Field>
+   <Field label="Câmera principal"><select className="w-full rounded-md border bg-background p-2" value={edit.primary_camera_id} onChange={e=>setEdit({...edit,primary_camera_id:e.target.value})}><option value="">Nenhuma</option>{cameras.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+  </FormDialog>}
+ </>;
 }

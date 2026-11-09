@@ -10,33 +10,96 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminLeiturasRouteImport } from './routes/admin.leituras'
+import { Route as AdminPesquisarRouteImport } from './routes/admin.pesquisar'
+import { Route as AdminLeiturasIdRouteImport } from './routes/admin.leituras_.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLeiturasRoute = AdminLeiturasRouteImport.update({
+  id: '/leituras',
+  path: '/leituras',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPesquisarRoute = AdminPesquisarRouteImport.update({
+  id: '/pesquisar',
+  path: '/pesquisar',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLeiturasIdRoute = AdminLeiturasIdRouteImport.update({
+  id: '/leituras_/$id',
+  path: '/leituras/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/leituras_/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/admin/leituras'
+    | '/admin/pesquisar'
+    | '/admin/'
+    | '/admin/leituras/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin/leituras'
+    | '/admin/pesquisar'
+    | '/admin'
+    | '/admin/leituras/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/admin/leituras'
+    | '/admin/pesquisar'
+    | '/admin/'
+    | '/admin/leituras_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +111,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/leituras': {
+      id: '/admin/leituras'
+      path: '/leituras'
+      fullPath: '/admin/leituras'
+      preLoaderRoute: typeof AdminLeiturasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pesquisar': {
+      id: '/admin/pesquisar'
+      path: '/pesquisar'
+      fullPath: '/admin/pesquisar'
+      preLoaderRoute: typeof AdminPesquisarRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/leituras_/$id': {
+      id: '/admin/leituras_/$id'
+      path: '/leituras/$id'
+      fullPath: '/admin/leituras/$id'
+      preLoaderRoute: typeof AdminLeiturasIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminLeiturasRoute: typeof AdminLeiturasRoute
+  AdminPesquisarRoute: typeof AdminPesquisarRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminLeiturasIdRoute: typeof AdminLeiturasIdRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminLeiturasRoute: AdminLeiturasRoute,
+  AdminPesquisarRoute: AdminPesquisarRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminLeiturasIdRoute: AdminLeiturasIdRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

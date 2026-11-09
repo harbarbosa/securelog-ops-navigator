@@ -28,7 +28,7 @@ export async function registerCrud(app:FastifyInstance){
   const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin','supervisor'],reply))return;
   const {entity,id}=z.object({entity:z.string(),id:uuid}).parse(req.params);
   const table=entityName(entity);if(!table)return reply.code(404).send({error:'Recurso não encontrado'});
-  const values=schemas[table].partial().refine(v=>Object.keys(v).length>0,'Informe pelo menos um campo').parse(req.body) as Record<string,unknown>;
+  const values=z.record(z.unknown()).parse(req.body) as Record<string,unknown>;
   const keys=Object.keys(values);
   const result=await pool.query(`UPDATE "${table}" SET ${keys.map((k,i)=>'"'+k+'"=$'+(i+1)).join(',')} WHERE id=$${keys.length+1} RETURNING id`,[...keys.map(k=>values[k]),id]);
   if(!result.rowCount)return reply.code(404).send({error:'Registro não encontrado'});

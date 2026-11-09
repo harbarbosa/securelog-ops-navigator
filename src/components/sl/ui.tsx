@@ -113,7 +113,7 @@ export function Pagination({ page, total, onPage }: { page: number; total: numbe
       <button className={btn} disabled={page === 1} onClick={() => onPage(page - 1)} aria-label="Anterior"><ChevronLeft className="h-4 w-4" /></button>
       {pages.map((p, i) => (
         <span key={p} className="flex items-center gap-1">
-          {i > 0 && p - pages[i - 1] > 1 && <span className="px-1 text-muted-foreground">…</span>}
+          {i > 0 && p - pages[i - 1]! > 1 && <span className="px-1 text-muted-foreground">…</span>}
           <button className={cn(btn, p === page && "border-brand bg-brand text-brand-foreground hover:bg-brand")} onClick={() => onPage(p)}>{p}</button>
         </span>
       ))}

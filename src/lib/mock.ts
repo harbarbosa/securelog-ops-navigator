@@ -28,12 +28,12 @@ export const locais = [
 ];
 
 export const cameras = [
-  { id: "c1", nome: "CAM-DOCA-01", local: locais[0].nome, gravador: "NVR-CD-01", canal: 1, tipo: "Bullet IP 4MP", descricao: "Visão frontal da doca", status: "online" as Status },
-  { id: "c2", nome: "CAM-DOCA-02", local: locais[1].nome, gravador: "NVR-CD-01", canal: 2, tipo: "Bullet IP 4MP", descricao: "Visão lateral", status: "online" as Status },
-  { id: "c3", nome: "CAM-SEP-A", local: locais[2].nome, gravador: "NVR-CD-02", canal: 5, tipo: "Dome IP 2MP", descricao: "Corredor A", status: "online" as Status },
-  { id: "c4", nome: "CAM-CONF-01", local: locais[3].nome, gravador: "NVR-CD-02", canal: 7, tipo: "Dome IP 4MP", descricao: "Bancada superior", status: "online" as Status },
-  { id: "c5", nome: "CAM-EXP-03", local: locais[4].nome, gravador: "DVR-EXP-01", canal: 3, tipo: "Bullet analógica", descricao: "Portão 3", status: "offline" as Status },
-  { id: "c6", nome: "CAM-DEV-01", local: locais[5].nome, gravador: "NVR-CD-02", canal: 9, tipo: "Dome IP 2MP", descricao: "Área de triagem", status: "online" as Status },
+  { id: "c1", nome: "CAM-DOCA-01", local: locais[0]!.nome, gravador: "NVR-CD-01", canal: 1, tipo: "Bullet IP 4MP", descricao: "Visão frontal da doca", status: "online" as Status },
+  { id: "c2", nome: "CAM-DOCA-02", local: locais[1]!.nome, gravador: "NVR-CD-01", canal: 2, tipo: "Bullet IP 4MP", descricao: "Visão lateral", status: "online" as Status },
+  { id: "c3", nome: "CAM-SEP-A", local: locais[2]!.nome, gravador: "NVR-CD-02", canal: 5, tipo: "Dome IP 2MP", descricao: "Corredor A", status: "online" as Status },
+  { id: "c4", nome: "CAM-CONF-01", local: locais[3]!.nome, gravador: "NVR-CD-02", canal: 7, tipo: "Dome IP 4MP", descricao: "Bancada superior", status: "online" as Status },
+  { id: "c5", nome: "CAM-EXP-03", local: locais[4]!.nome, gravador: "DVR-EXP-01", canal: 3, tipo: "Bullet analógica", descricao: "Portão 3", status: "offline" as Status },
+  { id: "c6", nome: "CAM-DEV-01", local: locais[5]!.nome, gravador: "NVR-CD-02", canal: 9, tipo: "Dome IP 2MP", descricao: "Área de triagem", status: "online" as Status },
 ];
 
 export const usuarios = [
@@ -46,11 +46,11 @@ export const usuarios = [
 ];
 
 export const dispositivos = [
-  { id: "d1", nome: "Zebra TC21 #01", codigo: "ZB-001", serie: "21345522019841", local: locais[0].nome, usuario: "Carlos Mendes", ultima: ago(0.3), pendentes: 0, status: "online" as Status },
-  { id: "d2", nome: "Zebra TC21 #02", codigo: "ZB-002", serie: "21345522019877", local: locais[1].nome, usuario: "Juliana Ferreira", ultima: ago(3), pendentes: 0, status: "online" as Status },
-  { id: "d3", nome: "Zebra MC3300 #01", codigo: "ZB-010", serie: "MC33-2209-4471", local: locais[2].nome, usuario: "Ana Paula Souza", ultima: ago(0.8), pendentes: 3, status: "sincronizando" as Status },
-  { id: "d4", nome: "Zebra MC3300 #02", codigo: "ZB-011", serie: "MC33-2209-4502", local: locais[3].nome, usuario: "—", ultima: ago(12), pendentes: 7, status: "pendente" as Status },
-  { id: "d5", nome: "Zebra TC26 #01", codigo: "ZB-020", serie: "TC26-2301-0093", local: locais[4].nome, usuario: "Rafael Lima", ultima: ago(41), pendentes: 18, status: "offline" as Status },
+  { id: "d1", nome: "Zebra TC21 #01", codigo: "ZB-001", serie: "21345522019841", local: locais[0]!.nome, usuario: "Carlos Mendes", ultima: ago(0.3), pendentes: 0, status: "online" as Status },
+  { id: "d2", nome: "Zebra TC21 #02", codigo: "ZB-002", serie: "21345522019877", local: locais[1]!.nome, usuario: "Juliana Ferreira", ultima: ago(3), pendentes: 0, status: "online" as Status },
+  { id: "d3", nome: "Zebra MC3300 #01", codigo: "ZB-010", serie: "MC33-2209-4471", local: locais[2]!.nome, usuario: "Ana Paula Souza", ultima: ago(0.8), pendentes: 3, status: "sincronizando" as Status },
+  { id: "d4", nome: "Zebra MC3300 #02", codigo: "ZB-011", serie: "MC33-2209-4502", local: locais[3]!.nome, usuario: "—", ultima: ago(12), pendentes: 7, status: "pendente" as Status },
+  { id: "d5", nome: "Zebra TC26 #01", codigo: "ZB-020", serie: "TC26-2301-0093", local: locais[4]!.nome, usuario: "Rafael Lima", ultima: ago(41), pendentes: 18, status: "offline" as Status },
 ];
 
 const usersOp = ["Carlos Mendes", "Ana Paula Souza", "Juliana Ferreira", "Rafael Lima"];
@@ -64,15 +64,15 @@ export type Leitura = {
 
 export const leituras: Leitura[] = Array.from({ length: 64 }, (_, i) => {
   const li = Math.floor(rnd() * 5);
-  const local = locais[li];
-  const disp = dispositivos[li];
+  const local = locais[li]!;
+  const disp = dispositivos[li]!;
   const r = rnd();
   const status: Status = disp.status === "offline" ? "pendente" : r > 0.93 ? "erro" : r > 0.85 ? "pendente" : "sincronizado";
   return {
     id: `LT-2026110${9}-${String(4821 - i).padStart(5, "0")}`,
     codigo: `789${String(Math.floor(rnd() * 1e10)).padStart(10, "0")}`,
     data: ago(i * 7 + Math.floor(rnd() * 5)),
-    usuario: usersOp[li % usersOp.length],
+    usuario: usersOp[li % usersOp.length]!,
     local: local.nome,
     dispositivo: disp.nome,
     camera: local.camera,

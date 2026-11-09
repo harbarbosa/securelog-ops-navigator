@@ -15,6 +15,16 @@ const origin=process.env.CORS_ORIGIN;
 if(!origin) throw new Error('CORS_ORIGIN missing');
 await app.register(cors,{origin:origin.split(',').map(s=>s.trim()),credentials:true});
 await app.register(cookie);
+const allowedOrigins=new Set(origin.split(',').map(s=>s.trim()));
+app.addHook('onRequest',async(req,reply)=>{
+ if(!['POST','PUT','PATCH','DELETE'].includes(req.method))return;
+ // Browser cookie-authenticated requests must come from an allowed origin.
+ // Zebra bearer-token requests have no session cookie and use a separate auth mechanism.
+ if(req.url.startsWith('/api/device/'))return;
+ const requestOrigin=req.headers.origin;
+ if(requestOrigin&&!allowedOrigins.has(requestOrigin)){return reply.code(403).send({error:'Origem não autorizada'});}
+ if(req.headers.cookie&&!requestOrigin){return reply.code(403).send({error:'Origem obrigatória para requisições autenticadas'});}
+});
 await app.register(rateLimit,{global:true,max:120,timeWindow:'1 minute'});
 app.setErrorHandler((error,req,reply)=>{
  req.log.error(error);
@@ -52,8 +62,18 @@ app.get('/api/:entity',async(req,reply)=>{
  if(entity==='users'&&!requireRole(user,['admin','supervisor'],reply))return;
  const cfg=entities[entity as keyof typeof entities];
  const query=z.object({limit:z.coerce.number().int().min(1).max(100).default(25),offset:z.coerce.number().int().min(0).default(0)}).parse(req.query);
- const {rows}=await pool.query(`SELECT ${cfg.columns} FROM ${cfg.table} ORDER BY ${cfg.sort} LIMIT $1 OFFSET $2`,[query.limit,query.offset]);
- const count=await pool.query(`SELECT count(*)::int AS total FROM ${cfg.table}`);
+ const params:unknown[]=[];
+ let where='';
+ if(user.role!=='admin'){
+  if(entity==='locations')where=' WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1)';
+  else if(entity==='devices')where=' WHERE location_id IN (SELECT location_id FROM user_locations WHERE user_id=$1)';
+  else if(entity==='cameras')where=' WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1))';
+  else if(entity==='recorders')where=' WHERE id IN (SELECT recorder_id FROM cameras WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1)))';
+  else if(entity==='users'&&user.role==='supervisor')where=' WHERE id IN (SELECT user_id FROM user_locations WHERE location_id IN (SELECT location_id FROM user_locations WHERE user_id=$1))';
+  params.push(user.id);
+ }
+ const {rows}=await pool.query(`SELECT ${cfg.columns} FROM ${cfg.table}${where} ORDER BY ${cfg.sort} LIMIT $${params.length+1} OFFSET $${params.length+2}`,[...params,query.limit,query.offset]);
+ const count=await pool.query(`SELECT count(*)::int AS total FROM ${cfg.table}${where}`,params);
  return {items:rows,total:count.rows[0].total,limit:query.limit,offset:query.offset};
 });
 // Reading ingestion is restricted to authenticated device credentials.

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, Logo, meta } from "@/components/sl/ui";
 import bg from "@/assets/login-bg.jpg";
+import { securelog } from "@/lib/securelog-api";
 
 export const Route = createFileRoute("/")({
   head: () => meta("Entrar", "Acesso ao painel administrativo SecureLog de leituras, câmeras e gravadores."),
@@ -15,22 +16,25 @@ export const Route = createFileRoute("/")({
 
 function Login() {
   const nav = useNavigate();
-  const [user, setUser] = useState("henrique.barbosa");
+  const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
     if (!user || !pass) return setErr("Informe usuário e senha.");
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      if (pass === "erro") return setErr("Usuário ou senha inválidos. Restam 2 tentativas antes do bloqueio.");
-      toast.success("Bem-vindo, Henrique");
+    try {
+      const response = await securelog.login(user, pass);
+      toast.success(`Bem-vindo, ${response.user.name}`);
       nav({ to: "/admin" });
-    }, 700);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Não foi possível entrar.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,13 +53,13 @@ function Login() {
             )}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2"><Checkbox defaultChecked />Lembrar acesso</label>
-              <button type="button" className="text-brand hover:underline" onClick={() => toast.info("Instruções enviadas", { description: "Simulação: um link de redefinição seria enviado ao e-mail cadastrado." })}>
+              <button type="button" className="text-brand hover:underline" onClick={() => toast.info("Recuperação de senha ainda não disponível. Contate o administrador.")}>
                 Esqueci minha senha
               </button>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>{loading && <Loader2 className="h-4 w-4 animate-spin" />}Entrar</Button>
           </form>
-          <p className="mt-4 text-center text-xs text-muted-foreground">Protótipo: qualquer senha entra. Digite "erro" para ver a falha.</p>
+
         </div>
         <Link to="/mobile" className="mt-4 flex items-center justify-center gap-2 text-sm text-sidebar-accent-foreground hover:underline">
           <Smartphone className="h-4 w-4" />Abrir aplicativo do coletor Zebra

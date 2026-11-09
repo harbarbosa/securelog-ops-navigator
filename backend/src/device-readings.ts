@@ -10,7 +10,12 @@ export async function registerDeviceReadings(app:FastifyInstance){
   try{
    await client.query('BEGIN');
    const prior=await client.query('SELECT id,location_id,camera_id,code,occurred_at FROM readings WHERE device_id=$1 AND device_event_id=$2',[device.id,body.device_event_id]);
-   if(prior.rowCount){await client.query('COMMIT');return {id:prior.rows[0].id,duplicate:true,camera_id:prior.rows[0].camera_id};}
+   if(prior.rowCount){
+    if(prior.rows[0].code!==body.code||new Date(prior.rows[0].occurred_at).getTime()!==new Date(body.occurred_at).getTime()){
+     await client.query('ROLLBACK');return reply.code(409).send({error:'Identificador de evento já utilizado com dados diferentes'});
+    }
+    await client.query('COMMIT');return {id:prior.rows[0].id,duplicate:true,camera_id:prior.rows[0].camera_id};
+   }
    const location=await client.query('SELECT l.id,l.primary_camera_id,c.active AS camera_active,r.active AS recorder_active FROM locations l LEFT JOIN cameras c ON c.id=l.primary_camera_id LEFT JOIN recorders r ON r.id=c.recorder_id WHERE l.id=$1 AND l.active=true FOR UPDATE OF l',[device.location_id]);
    if(!location.rowCount){await client.query('ROLLBACK');return reply.code(409).send({error:'Local indisponível'});}
    const loc=location.rows[0];
@@ -21,7 +26,9 @@ export async function registerDeviceReadings(app:FastifyInstance){
    const id=inserted.rows[0]?.id;
    if(id)await client.query('UPDATE devices SET last_seen_at=now() WHERE id=$1',[device.id]);
    await client.query('COMMIT');
-   if(!id){const existing=await pool.query('SELECT id,camera_id FROM readings WHERE device_id=$1 AND device_event_id=$2',[device.id,body.device_event_id]);return {id:existing.rows[0]?.id,duplicate:true,camera_id:existing.rows[0]?.camera_id};}
+   if(!id){const existing=await pool.query('SELECT id,camera_id,code,occurred_at FROM readings WHERE device_id=$1 AND device_event_id=$2',[device.id,body.device_event_id]);
+    const old=existing.rows[0];if(!old||old.code!==body.code||new Date(old.occurred_at).getTime()!==new Date(body.occurred_at).getTime())return reply.code(409).send({error:'Conflito de evento'});
+    return {id:old.id,duplicate:true,camera_id:old.camera_id};}
    return reply.code(201).send({id,duplicate:false,camera_id:cameraId});
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
  });

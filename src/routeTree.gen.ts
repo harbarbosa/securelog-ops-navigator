@@ -11,9 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as MobileRouteImport } from './routes/mobile'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminCamerasRouteImport } from './routes/admin.cameras'
+import { Route as AdminDispositivosRouteImport } from './routes/admin.dispositivos'
+import { Route as AdminGravadoresRouteImport } from './routes/admin.gravadores'
 import { Route as AdminLeiturasRouteImport } from './routes/admin.leituras'
+import { Route as AdminLocaisRouteImport } from './routes/admin.locais'
+import { Route as AdminMonitoramentoRouteImport } from './routes/admin.monitoramento'
 import { Route as AdminPesquisarRouteImport } from './routes/admin.pesquisar'
+import { Route as AdminRetencaoRouteImport } from './routes/admin.retencao'
+import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminLeiturasIdRouteImport } from './routes/admin.leituras_.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -26,9 +34,29 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MobileRoute = MobileRouteImport.update({
+  id: '/mobile',
+  path: '/mobile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCamerasRoute = AdminCamerasRouteImport.update({
+  id: '/cameras',
+  path: '/cameras',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDispositivosRoute = AdminDispositivosRouteImport.update({
+  id: '/dispositivos',
+  path: '/dispositivos',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGravadoresRoute = AdminGravadoresRouteImport.update({
+  id: '/gravadores',
+  path: '/gravadores',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLeiturasRoute = AdminLeiturasRouteImport.update({
@@ -36,9 +64,29 @@ const AdminLeiturasRoute = AdminLeiturasRouteImport.update({
   path: '/leituras',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLocaisRoute = AdminLocaisRouteImport.update({
+  id: '/locais',
+  path: '/locais',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMonitoramentoRoute = AdminMonitoramentoRouteImport.update({
+  id: '/monitoramento',
+  path: '/monitoramento',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPesquisarRoute = AdminPesquisarRouteImport.update({
   id: '/pesquisar',
   path: '/pesquisar',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRetencaoRoute = AdminRetencaoRouteImport.update({
+  id: '/retencao',
+  path: '/retencao',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLeiturasIdRoute = AdminLeiturasIdRouteImport.update({
@@ -50,15 +98,31 @@ const AdminLeiturasIdRoute = AdminLeiturasIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/mobile': typeof MobileRoute
+  '/admin/cameras': typeof AdminCamerasRoute
+  '/admin/dispositivos': typeof AdminDispositivosRoute
+  '/admin/gravadores': typeof AdminGravadoresRoute
   '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/locais': typeof AdminLocaisRoute
+  '/admin/monitoramento': typeof AdminMonitoramentoRoute
   '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin/retencao': typeof AdminRetencaoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/mobile': typeof MobileRoute
+  '/admin/cameras': typeof AdminCamerasRoute
+  '/admin/dispositivos': typeof AdminDispositivosRoute
+  '/admin/gravadores': typeof AdminGravadoresRoute
   '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/locais': typeof AdminLocaisRoute
+  '/admin/monitoramento': typeof AdminMonitoramentoRoute
   '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin/retencao': typeof AdminRetencaoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/admin': typeof AdminIndexRoute
   '/admin/leituras/$id': typeof AdminLeiturasIdRoute
 }
@@ -66,8 +130,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/mobile': typeof MobileRoute
+  '/admin/cameras': typeof AdminCamerasRoute
+  '/admin/dispositivos': typeof AdminDispositivosRoute
+  '/admin/gravadores': typeof AdminGravadoresRoute
   '/admin/leituras': typeof AdminLeiturasRoute
+  '/admin/locais': typeof AdminLocaisRoute
+  '/admin/monitoramento': typeof AdminMonitoramentoRoute
   '/admin/pesquisar': typeof AdminPesquisarRoute
+  '/admin/retencao': typeof AdminRetencaoRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/leituras_/$id': typeof AdminLeiturasIdRoute
 }
@@ -76,23 +148,47 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/mobile'
+    | '/admin/cameras'
+    | '/admin/dispositivos'
+    | '/admin/gravadores'
     | '/admin/leituras'
+    | '/admin/locais'
+    | '/admin/monitoramento'
     | '/admin/pesquisar'
+    | '/admin/retencao'
+    | '/admin/usuarios'
     | '/admin/'
     | '/admin/leituras/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/mobile'
+    | '/admin/cameras'
+    | '/admin/dispositivos'
+    | '/admin/gravadores'
     | '/admin/leituras'
+    | '/admin/locais'
+    | '/admin/monitoramento'
     | '/admin/pesquisar'
+    | '/admin/retencao'
+    | '/admin/usuarios'
     | '/admin'
     | '/admin/leituras/$id'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/mobile'
+    | '/admin/cameras'
+    | '/admin/dispositivos'
+    | '/admin/gravadores'
     | '/admin/leituras'
+    | '/admin/locais'
+    | '/admin/monitoramento'
     | '/admin/pesquisar'
+    | '/admin/retencao'
+    | '/admin/usuarios'
     | '/admin/'
     | '/admin/leituras_/$id'
   fileRoutesById: FileRoutesById
@@ -100,6 +196,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  MobileRoute: typeof MobileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -118,11 +215,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mobile': {
+      id: '/mobile'
+      path: '/mobile'
+      fullPath: '/mobile'
+      preLoaderRoute: typeof MobileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/cameras': {
+      id: '/admin/cameras'
+      path: '/cameras'
+      fullPath: '/admin/cameras'
+      preLoaderRoute: typeof AdminCamerasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/dispositivos': {
+      id: '/admin/dispositivos'
+      path: '/dispositivos'
+      fullPath: '/admin/dispositivos'
+      preLoaderRoute: typeof AdminDispositivosRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/gravadores': {
+      id: '/admin/gravadores'
+      path: '/gravadores'
+      fullPath: '/admin/gravadores'
+      preLoaderRoute: typeof AdminGravadoresRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/leituras': {
@@ -132,11 +257,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLeiturasRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/locais': {
+      id: '/admin/locais'
+      path: '/locais'
+      fullPath: '/admin/locais'
+      preLoaderRoute: typeof AdminLocaisRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/monitoramento': {
+      id: '/admin/monitoramento'
+      path: '/monitoramento'
+      fullPath: '/admin/monitoramento'
+      preLoaderRoute: typeof AdminMonitoramentoRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/pesquisar': {
       id: '/admin/pesquisar'
       path: '/pesquisar'
       fullPath: '/admin/pesquisar'
       preLoaderRoute: typeof AdminPesquisarRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/retencao': {
+      id: '/admin/retencao'
+      path: '/retencao'
+      fullPath: '/admin/retencao'
+      preLoaderRoute: typeof AdminRetencaoRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/leituras_/$id': {
@@ -150,15 +303,29 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminCamerasRoute: typeof AdminCamerasRoute
+  AdminDispositivosRoute: typeof AdminDispositivosRoute
+  AdminGravadoresRoute: typeof AdminGravadoresRoute
   AdminLeiturasRoute: typeof AdminLeiturasRoute
+  AdminLocaisRoute: typeof AdminLocaisRoute
+  AdminMonitoramentoRoute: typeof AdminMonitoramentoRoute
   AdminPesquisarRoute: typeof AdminPesquisarRoute
+  AdminRetencaoRoute: typeof AdminRetencaoRoute
+  AdminUsuariosRoute: typeof AdminUsuariosRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminLeiturasIdRoute: typeof AdminLeiturasIdRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCamerasRoute: AdminCamerasRoute,
+  AdminDispositivosRoute: AdminDispositivosRoute,
+  AdminGravadoresRoute: AdminGravadoresRoute,
   AdminLeiturasRoute: AdminLeiturasRoute,
+  AdminLocaisRoute: AdminLocaisRoute,
+  AdminMonitoramentoRoute: AdminMonitoramentoRoute,
   AdminPesquisarRoute: AdminPesquisarRoute,
+  AdminRetencaoRoute: AdminRetencaoRoute,
+  AdminUsuariosRoute: AdminUsuariosRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminLeiturasIdRoute: AdminLeiturasIdRoute,
 }
@@ -168,6 +335,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  MobileRoute: MobileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

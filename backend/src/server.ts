@@ -7,6 +7,8 @@ import argon2 from 'argon2';
 import {z} from 'zod';
 import {pool,dbHealth} from './db.js';
 import {createSession,hashToken,requireUser,requireRole} from './auth.js';
+import {registerCrud} from './crud.js';
+import {readingInput} from './validation.js';
 const app=Fastify({logger:true,bodyLimit:1024*1024});
 const origin=process.env.CORS_ORIGIN;
 if(!origin) throw new Error('CORS_ORIGIN missing');
@@ -64,12 +66,13 @@ app.get('/api/readings',async(req,reply)=>{
 });
 app.post('/api/readings',async(req,reply)=>{
  const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin','supervisor','operator'],reply))return;
- const b=z.object({device_event_id:z.string().min(1).max(128),device_id:z.string().uuid(),location_id:z.string().uuid(),camera_id:z.string().uuid().nullable().optional(),code:z.string().trim().min(1).max(512),occurred_at:z.string().datetime({offset:true})}).parse(req.body);
+ const b=readingInput.parse(req.body);
  const device=await pool.query('SELECT id,location_id,active FROM devices WHERE id=$1',[b.device_id]);
  if(!device.rows[0]?.active||device.rows[0].location_id!==b.location_id)return reply.code(400).send({error:'Dispositivo inativo ou local incompatível'});
  const {rows}=await pool.query(`INSERT INTO readings(device_event_id,device_id,user_id,location_id,camera_id,code,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(device_id,device_event_id) DO NOTHING RETURNING id`,[b.device_event_id,b.device_id,user.id,b.location_id,b.camera_id??null,b.code,b.occurred_at]);
  if(!rows[0])return {duplicate:true};
  return reply.code(201).send({id:rows[0].id,duplicate:false});
 });
+await registerCrud(app);
 const port=Number(process.env.PORT??3333);
 await app.listen({host:process.env.HOST??'127.0.0.1',port});

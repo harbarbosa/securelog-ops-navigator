@@ -10,6 +10,7 @@ import {createSession,hashToken,requireUser,requireRole} from './auth.js';
 import {registerCrud} from './crud.js';
 import {registerDeviceReadings} from './device-readings.js';
 import {registerReadingSearch} from './reading-access.js';
+import {registerMedia} from './media.js';
 const app=Fastify({logger:true,bodyLimit:1024*1024});
 const origin=process.env.CORS_ORIGIN;
 if(!origin) throw new Error('CORS_ORIGIN missing');
@@ -51,7 +52,7 @@ app.post('/api/auth/logout',async(req,reply)=>{
 });
 const entities={
  locations:{table:'locations',columns:'id,name,description,primary_camera_id,active',sort:'name'},
- recorders:{table:'recorders',columns:'id,name,host,port,protocol,username,(password_ciphertext IS NOT NULL) AS has_credentials,active,last_seen_at',sort:'name'},
+ recorders:{table:'recorders',columns:'id,name,host,port,rtsp_port,protocol,username,(password_ciphertext IS NOT NULL) AS has_credentials,active,last_seen_at',sort:'name'},
  cameras:{table:'cameras',columns:'id,name,recorder_id,channel,active',sort:'name'},
  devices:{table:'devices',columns:'id,name,serial_number,location_id,active,last_seen_at',sort:'name'},
  users:{table:'users',columns:'id,name,username,email,role,active,created_at',sort:'name'}
@@ -82,5 +83,6 @@ app.get('/api/:entity',async(req,reply)=>{
 await registerCrud(app);
 await registerDeviceReadings(app);
 await registerReadingSearch(app);
+await registerMedia(app);
 const port=Number(process.env.PORT??3333);
 await app.listen({host:process.env.HOST??'127.0.0.1',port});

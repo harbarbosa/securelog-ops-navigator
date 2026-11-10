@@ -6,7 +6,7 @@ import {encryptSecret} from './secret.js';
 
 const schemas={
  locations:z.object({name:z.string().trim().min(1).max(160),description:z.string().max(2000).nullable().optional(),primary_camera_id:z.string().uuid().nullable().optional(),active:z.boolean().optional()}),
- recorders:z.object({name:z.string().trim().min(1).max(160),host:z.string().trim().min(1).max(255),port:z.number().int().min(1).max(65535),protocol:z.string().trim().min(1).max(80),username:z.string().trim().max(160).nullable().optional(),password:z.string().min(1).max(500).optional(),active:z.boolean().optional()}),
+ recorders:z.object({name:z.string().trim().min(1).max(160),host:z.string().trim().min(1).max(255),port:z.number().int().min(1).max(65535),rtsp_port:z.number().int().min(1).max(65535).optional(),protocol:z.string().trim().min(1).max(80),username:z.string().trim().max(160).nullable().optional(),password:z.string().min(1).max(500).optional(),active:z.boolean().optional()}),
  cameras:z.object({name:z.string().trim().min(1).max(160),recorder_id:z.string().uuid(),channel:z.number().int().min(0),active:z.boolean().optional()}),
  devices:z.object({name:z.string().trim().min(1).max(160),serial_number:z.string().trim().min(1).max(160),location_id:z.string().uuid().nullable().optional(),active:z.boolean().optional()})
 } as const;

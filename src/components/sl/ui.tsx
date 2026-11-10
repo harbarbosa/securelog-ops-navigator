@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, ImageOff, Loader2, Pause, Play, ScanLine, ShieldCheck, Video, AlertTriangle, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmt, toInput, type Status } from "@/lib/format";
+import { api, securelogApiBase } from "@/lib/securelog-api";
+import Hls from "hls.js";
 
 export function Logo({ light, size = "md" }: { light?: boolean; size?: "md" | "lg" }) {
   return (
@@ -154,75 +157,48 @@ export function CameraFrame({ camera, time, offline, children, className }: { ca
   );
 }
 
-type MediaState = "idle" | "consultando" | "imagem" | "sem-imagem" | "video" | "falha";
+type MediaState = "idle" | "consultando" | "video" | "sem-video" | "falha";
+type MediaFile = { start_time: string; end_time: string; file_path: string };
 
-export function MediaPanel({ camera, gravador, data }: { camera: string; gravador: string; data: Date }) {
+export function MediaPanel({ camera, gravador, cameraId, data }: { camera: string; gravador: string; cameraId?: string | null; data: Date }) {
   const [state, setState] = useState<MediaState>("idle");
   const [ini, setIni] = useState(toInput(new Date(data.getTime() - 30000)));
   const [fim, setFim] = useState(toInput(new Date(data.getTime() + 30000)));
-  const [playing, setPlaying] = useState(false);
-  const [prog, setProg] = useState(0);
+  const [playlist, setPlaylist] = useState<string | null>(null);
+  const [popup, setPopup] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!playing) return;
-    const t = setInterval(() => setProg((p) => (p >= 100 ? (setPlaying(false), 100) : p + 2)), 120);
-    return () => clearInterval(t);
-  }, [playing]);
+    if (!popup || !playlist || !videoRef.current) return;
+    const video = videoRef.current;
+    if (Hls.isSupported()) {
+      const hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = true; } });
+      hls.loadSource(playlist); hls.attachMedia(video);
+      return () => hls.destroy();
+    }
+    video.src = playlist;
+    return;
+  }, [popup, playlist]);
 
-  const buscar = (tipo: "imagem" | "video") => {
-    setState("sem-imagem");
-    setPlaying(false); setProg(0);
-    toast.info("Integração de mídia com o NVR ainda não está configurada", { description: `${camera} • ${gravador}` });
+  const buscar = async () => {
+    if (!cameraId) { toast.error("A leitura não possui câmera associada"); return; }
+    setState("consultando");
+    try {
+      const query = `camera_id=${encodeURIComponent(cameraId)}&start=${encodeURIComponent(new Date(ini).toISOString())}&end=${encodeURIComponent(new Date(fim).toISOString())}`;
+      const found = await api<{ items: MediaFile[] }>(`/api/media/search?${query}`);
+      if (!found.items.length) { setState("sem-video"); toast.info("Nenhuma gravação encontrada no período"); return; }
+      const job = await api<{ playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
+      setPlaylist(`${securelogApiBase}${job.playlist}`); setState("video"); setPopup(true);
+    } catch (error) { setState("falha"); toast.error(error instanceof Error ? error.message : "Falha ao consultar o gravador"); }
   };
-
-  const label: Record<MediaState, ReactNode> = {
-    idle: <StatusBadge status="inativo" label="Aguardando consulta" />,
-    consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />,
-    imagem: <StatusBadge status="online" label="Imagem disponível" />,
-    "sem-imagem": <StatusBadge status="pendente" label="Imagem indisponível" />,
-    video: <StatusBadge status="online" label="Vídeo encontrado" />,
-    falha: <StatusBadge status="erro" label="Falha na consulta" />,
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {label[state]}
-        <span className="text-xs text-muted-foreground">NVR não configurado</span>
-      </div>
-
-      <CameraFrame camera={camera} time={data} offline={state === "sem-imagem" || state === "falha" || state === "idle"}>
-        {state === "idle" && <div className="absolute inset-0 grid place-items-center bg-media text-sm"><div className="text-center"><ImageIcon className="mx-auto mb-2 h-8 w-8 opacity-50" />Snapshot ainda não consultado</div></div>}
-        {state === "consultando" && (
-          <div className="absolute inset-0 grid place-items-center bg-media/80">
-            <div className="text-center text-sm"><Loader2 className="mx-auto mb-2 h-7 w-7 animate-spin" />Consultando {gravador}…</div>
-          </div>
-        )}
-        {state === "falha" && <div className="absolute inset-0 grid place-items-center bg-media text-sm"><div className="text-center"><AlertTriangle className="mx-auto mb-2 h-8 w-8 text-destructive" />Não foi possível comunicar com o gravador</div></div>}
-        {state === "video" && (
-          <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-media/85 px-3 py-2">
-            <button onClick={() => { if (prog >= 100) setProg(0); setPlaying(!playing); }} aria-label={playing ? "Pausar" : "Reproduzir"}>
-              {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-            <div className="h-1 flex-1 rounded bg-media-foreground/25"><div className="h-1 rounded bg-brand" style={{ width: `${prog}%` }} /></div>
-            <span className="font-mono text-[11px]">00:{String(Math.round((prog / 100) * 60)).padStart(2, "0")} / 01:00</span>
-          </div>
-        )}
-      </CameraFrame>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Data/hora inicial"><Input type="datetime-local" value={ini} onChange={(e) => setIni(e.target.value)} /></Field>
-        <Field label="Data/hora final"><Input type="datetime-local" value={fim} onChange={(e) => setFim(e.target.value)} /></Field>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => buscar("imagem")} disabled={state === "consultando"}><ImageIcon className="h-4 w-4" />Buscar imagem</Button>
-        <Button onClick={() => buscar("video")} disabled={state === "consultando"}><Video className="h-4 w-4" />Buscar vídeo</Button>
-        <Button variant="secondary" disabled={state !== "video"} onClick={() => toast.success("Download iniciado", { description: `trecho_${camera}_${ini.replace(/\D/g, "")}.mp4 (simulado)` })}>
-          <Download className="h-4 w-4" />Baixar trecho
-        </Button>
-      </div>
-    </div>
-  );
+  const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
+  return <div className="space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-2">{label[state]}<span className="text-xs text-muted-foreground">{gravador}</span></div>
+    <CameraFrame camera={camera} time={data} offline={state !== "video"} />
+    <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
+    <Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>
+    <Dialog open={popup} onOpenChange={setPopup}><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>{camera} — gravação do período selecionado</DialogTitle></DialogHeader><video ref={videoRef} controls autoPlay className="aspect-video w-full rounded-md bg-black" /></DialogContent></Dialog>
+  </div>;
 }
 
 export function EmptyState({ title, text, icon }: { title: string; text: string; icon?: ReactNode }) {

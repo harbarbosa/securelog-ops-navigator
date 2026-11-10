@@ -11,6 +11,15 @@ O backend Fastify/TypeScript e o PostgreSQL estão ativos para autenticação, c
 - Conectores de gravadores por fabricante/protocolo; credenciais guardadas em cofre/secret manager, nunca retornadas pela API.
 - Coletor Zebra: identificador único por leitura, sincronização idempotente, fila local offline e confirmação por lote.
 
+## Reprodução de gravações Intelbras
+
+Para gravadores Intelbras/Dahua compatíveis, a API pesquisa arquivos pelo `mediaFileFind.cgi` e inicia playback RTSP convertido para HLS pelo FFmpeg. Configure `FFMPEG_PATH` se o executável não estiver no PATH. O frontend abre o HLS em um popup, sem armazenar ou expor a senha do NVR.
+
+Rotas autenticadas:
+
+- `GET /api/media/search?camera_id=...&start=...&end=...`
+- `POST /api/media/playback` com `camera_id`, `start` e `end` em ISO-8601.
+
 ## Ordem de implementação
 1. Configuração da API, ambiente, migrations, healthcheck e testes.
 2. Login/logout, recuperação de senha, RBAC, sessões e proteção das rotas existentes.

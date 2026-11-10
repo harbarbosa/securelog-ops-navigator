@@ -3,6 +3,7 @@
  * Set VITE_SECURELOG_API_URL=http://127.0.0.1:3333 when running the UI locally.
  */
 const baseUrl=(import.meta.env['VITE_SECURELOG_API_URL'] as string|undefined)?.replace(/\/$/,'')??'';
+export const securelogApiBase=baseUrl;
 export type SecureLogUser={id:string;username:string;name:string;role:'admin'|'supervisor'|'operator'|'viewer'};
 export type Page<T>={items:T[];total:number;limit:number;offset:number};
 export type EntityName='locations'|'recorders'|'cameras'|'devices'|'users';

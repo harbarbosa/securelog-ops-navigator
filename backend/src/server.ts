@@ -51,7 +51,7 @@ app.post('/api/auth/logout',async(req,reply)=>{
 });
 const entities={
  locations:{table:'locations',columns:'id,name,description,primary_camera_id,active',sort:'name'},
- recorders:{table:'recorders',columns:'id,name,host,port,protocol,active,last_seen_at',sort:'name'},
+ recorders:{table:'recorders',columns:'id,name,host,port,protocol,username,(password_ciphertext IS NOT NULL) AS has_credentials,active,last_seen_at',sort:'name'},
  cameras:{table:'cameras',columns:'id,name,recorder_id,channel,active',sort:'name'},
  devices:{table:'devices',columns:'id,name,serial_number,location_id,active,last_seen_at',sort:'name'},
  users:{table:'users',columns:'id,name,username,email,role,active,created_at',sort:'name'}

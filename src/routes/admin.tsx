@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Confirm, Logo } from "@/components/sl/ui";
-import { alertas, fmt } from "@/lib/mock";
+import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
@@ -84,13 +84,7 @@ function AdminLayout() {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 p-0">
                 <p className="border-b px-4 py-2.5 text-sm font-semibold">Notificações</p>
-                {alertas.map((a) => (
-                  <div key={a.id} className="border-b px-4 py-2.5 last:border-0">
-                    <p className={cn("text-sm font-medium", a.nivel === "erro" ? "text-destructive" : "text-warning")}>{a.tipo}</p>
-                    <p className="text-xs text-muted-foreground">{a.texto}</p>
-                    <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{fmt(a.data)}</p>
-                  </div>
-                ))}
+                <div className="px-4 py-4 text-sm text-muted-foreground">Alertas reais serão exibidos conforme os equipamentos reportarem estado.</div>
               </PopoverContent>
             </Popover>
             <div className="hidden text-right sm:block">

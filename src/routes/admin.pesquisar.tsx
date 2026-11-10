@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, EmptyState, MediaPanel, PageHeader, StatusBadge, meta } from "@/components/sl/ui";
 import { api, type Page } from "@/lib/securelog-api";
-import { fmt } from "@/lib/mock";
+import { fmt } from "@/lib/format";
 type Reading={id:string;code:string;occurred_at:string;location_name:string;camera_name:string|null;device_id:string};
 export const Route=createFileRoute("/admin/pesquisar")({head:()=>meta("Pesquisar código","Pesquisa real de leituras registradas no SecureLog."),component:Pesquisar});
 function Pesquisar(){

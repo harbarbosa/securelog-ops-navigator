@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Confirm, meta } from "@/components/sl/ui";
 import { useMobile } from "@/components/sl/mobile-state";
-import { fmt } from "@/lib/mock";
+import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/mobile/leitura")({
@@ -20,10 +20,7 @@ function MLeitura() {
   const [fim, setFim] = useState(false);
   const last = m.sessao[0];
   const ler = () => {
-    const c = `789${Math.floor(Math.random() * 1e10).toString().padStart(10, "0")}`;
-    m.addLeitura(c);
-    setFlash(true); setTimeout(() => setFlash(false), 400);
-    m.online ? toast.success("Leitura registrada", { description: c }) : toast.warning("Salva no aparelho", { description: "Será enviada quando a conexão voltar." });
+    toast.info("Leitura real depende do token provisionado no dispositivo Zebra.");
   };
   return (
     <div className="flex min-h-full flex-col gap-4 p-4">
@@ -37,14 +34,14 @@ function MLeitura() {
         <span className="pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b from-transparent via-brand/10 to-transparent animate-scan" />
         <ScanLine className="mb-3 h-16 w-16" />
         <p className="text-lg font-semibold">Aponte o leitor para o código</p>
-        <p className="text-sm opacity-80">ou toque para simular</p>
+        <p className="text-sm opacity-80">Aguardando integração com o leitor Zebra</p>
       </button>
       <div className="card-surface p-4">
         <p className="text-xs text-muted-foreground">Último código lido</p>
         <p className="font-mono text-2xl font-semibold text-primary">{last?.codigo ?? "—"}</p>
         <div className="mt-2 flex justify-between text-sm"><span className="text-muted-foreground">{last ? fmt(last.data) : "Nenhuma leitura ainda"}</span><span>Sessão: <b>{m.sessao.length}</b></span></div>
       </div>
-      <Button className="h-14 text-lg" onClick={ler}><ScanLine className="h-5 w-5" />Simular leitura</Button>
+      <Button className="h-14 text-lg" onClick={ler}><ScanLine className="h-5 w-5" />Testar conexão do leitor</Button>
       <Button variant="outline" className="h-12" onClick={() => setFim(true)}>Finalizar operação</Button>
       <Confirm open={fim} onOpenChange={setFim} title="Finalizar operação?" description={`${m.sessao.length} leituras nesta sessão. ${m.pend.length} pendentes continuarão aguardando sincronização.`} confirmLabel="Finalizar"
         onConfirm={() => { m.reset(); toast.success("Operação finalizada"); nav({ to: "/mobile/local" }); }} />

@@ -1,7 +1,7 @@
 # SecureLog — Plano de backend funcional
 
-## Estado inicial (09/11/2026)
-O frontend React/TanStack existente é um protótipo com dados simulados. Esta branch inicia o backend sem alterar as telas existentes. **Nenhum endpoint, autenticação ou integração real está ativo apenas por adicionar esta documentação e migração.**
+## Estado atual
+O backend Fastify/TypeScript e o PostgreSQL estão ativos para autenticação, cadastros, leituras e pesquisa. O frontend administrativo consulta esses endpoints e não usa dados fictícios. As integrações externas de NVR e o provisionamento de dispositivos Zebra ainda precisam ser configurados para cada ambiente.
 
 ## Arquitetura proposta
 - Frontend atual: React 19, TanStack Start, TypeScript.
@@ -19,7 +19,7 @@ O frontend React/TanStack existente é um protótipo com dados simulados. Esta b
 5. Sincronização Zebra com autenticação por dispositivo, deduplicação e confirmação.
 6. Adaptadores NVR, pesquisa de snapshots/vídeos, armazenamento seguro e expiração.
 7. Heartbeat, monitoramento, alertas, retenção, observabilidade e testes ponta a ponta.
-8. Substituição gradual dos mocks das telas atuais, preservando layout e rotas.
+8. Conclusão das integrações externas e testes ponta a ponta, preservando layout e rotas.
 
 ## Critérios mínimos
 - Nenhum login por senha fictícia.

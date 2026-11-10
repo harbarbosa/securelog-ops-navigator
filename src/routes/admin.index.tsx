@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, PageHeader, StatusBadge, Table, Td, Th, meta } from "@/components/sl/ui";
 import { api, type Page } from "@/lib/securelog-api";
-import { fmt } from "@/lib/mock";
+import { fmt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({ head: () => meta("Visão geral", "Indicadores reais do SecureLog."), component: Overview });

@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { fmt, toInput, type Status } from "@/lib/mock";
-import snapshot from "@/assets/cctv-doca.jpg";
+import { fmt, toInput, type Status } from "@/lib/format";
 
 export function Logo({ light, size = "md" }: { light?: boolean; size?: "md" | "lg" }) {
   return (
@@ -146,7 +145,7 @@ export function CameraFrame({ camera, time, offline, children, className }: { ca
       {offline ? (
         <div className="grid h-full place-items-center text-center text-sm"><div><ImageOff className="mx-auto mb-2 h-8 w-8 opacity-60" />Sem sinal de vídeo</div></div>
       ) : (
-        <img src={snapshot} alt={`Imagem da ${camera}`} width={1280} height={720} loading="lazy" className="h-full w-full object-cover opacity-90 grayscale-[35%]" />
+        <div className="grid h-full place-items-center text-center text-sm"><div><ImageOff className="mx-auto mb-2 h-8 w-8 opacity-60" />Nenhuma mídia real disponível</div></div>
       )}
       <div className="absolute left-2 top-2 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{camera}</div>
       <div className="absolute right-2 top-2 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{fmt(time)}</div>
@@ -159,7 +158,6 @@ type MediaState = "idle" | "consultando" | "imagem" | "sem-imagem" | "video" | "
 
 export function MediaPanel({ camera, gravador, data }: { camera: string; gravador: string; data: Date }) {
   const [state, setState] = useState<MediaState>("idle");
-  const [simular, setSimular] = useState("sucesso");
   const [ini, setIni] = useState(toInput(new Date(data.getTime() - 30000)));
   const [fim, setFim] = useState(toInput(new Date(data.getTime() + 30000)));
   const [playing, setPlaying] = useState(false);
@@ -172,13 +170,9 @@ export function MediaPanel({ camera, gravador, data }: { camera: string; gravado
   }, [playing]);
 
   const buscar = (tipo: "imagem" | "video") => {
-    setState("consultando");
+    setState("sem-imagem");
     setPlaying(false); setProg(0);
-    setTimeout(() => {
-      if (simular === "falha") { setState("falha"); toast.error(`Falha ao consultar ${gravador}`, { description: "O gravador não respondeu dentro do tempo limite." }); return; }
-      if (simular === "indisponivel") { setState("sem-imagem"); toast.warning("Nenhuma mídia encontrada no período"); return; }
-      setState(tipo); toast.success(tipo === "imagem" ? "Imagem localizada" : "Vídeo encontrado", { description: `${camera} • ${gravador}` });
-    }, 1400);
+    toast.info("Integração de mídia com o NVR ainda não está configurada", { description: `${camera} • ${gravador}` });
   };
 
   const label: Record<MediaState, ReactNode> = {
@@ -194,14 +188,7 @@ export function MediaPanel({ camera, gravador, data }: { camera: string; gravado
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         {label[state]}
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          Simular resultado
-          <select className="field-select h-8 w-auto text-xs" value={simular} onChange={(e) => setSimular(e.target.value)}>
-            <option value="sucesso">Sucesso</option>
-            <option value="indisponivel">Mídia indisponível</option>
-            <option value="falha">Falha no gravador</option>
-          </select>
-        </label>
+        <span className="text-xs text-muted-foreground">NVR não configurado</span>
       </div>
 
       <CameraFrame camera={camera} time={data} offline={state === "sem-imagem" || state === "falha" || state === "idle"}>

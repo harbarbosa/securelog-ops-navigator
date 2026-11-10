@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, Logo, meta } from "@/components/sl/ui";
 import { useMobile } from "@/components/sl/mobile-state";
+import { securelog } from "@/lib/securelog-api";
 
 export const Route = createFileRoute("/mobile/")({
   head: () => meta("Coletor — Entrar", "Login do operador no aplicativo SecureLog para coletor Zebra."),
@@ -17,12 +18,14 @@ function MLogin() {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  const go = (e: React.FormEvent) => {
+  const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     if (!m.user || !pass) return setErr("Informe usuário e senha.");
     if (!m.online) return setErr("Sem conexão. O primeiro acesso do turno precisa de rede.");
     setLoading(true);
-    setTimeout(() => { setLoading(false); if (pass === "erro") return setErr("Usuário ou senha inválidos."); nav({ to: "/mobile/local" }); }, 700);
+    try { const response=await securelog.login(m.user,pass); m.setUser(response.user.username); nav({ to: "/mobile/local" }); }
+    catch(error){setErr(error instanceof Error?error.message:"Usuário ou senha inválidos.");}
+    finally { setLoading(false); }
   };
   return (
     <div className="flex min-h-full flex-col justify-center p-6">
@@ -36,7 +39,7 @@ function MLogin() {
       <p className={`mt-6 flex items-center justify-center gap-2 text-sm ${m.online ? "text-success" : "text-destructive"}`}>
         {m.online ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}{m.online ? "Conectado ao servidor" : "Sem conexão com o servidor"}
       </p>
-      <p className="mt-2 text-center text-xs text-muted-foreground">Toque no indicador no topo para simular perda de rede.</p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">O indicador mostra o estado de conectividade desta interface.</p>
     </div>
   );
 }

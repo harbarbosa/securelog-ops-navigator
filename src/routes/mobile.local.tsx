@@ -1,51 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Camera, Check, Cpu } from "lucide-react";
+import { Camera, Check, Cpu, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StatusBadge, meta } from "@/components/sl/ui";
 import { useMobile } from "@/components/sl/mobile-state";
-import { cameras, dispositivos, locais } from "@/lib/mock";
+import { api, type Page } from "@/lib/securelog-api";
 import { cn } from "@/lib/utils";
-
-export const Route = createFileRoute("/mobile/local")({
-  head: () => meta("Coletor — Local", "Seleção do local de trabalho e do leitor no coletor Zebra."),
-  component: MLocal,
-});
-
-function MLocal() {
-  const m = useMobile();
-  const nav = useNavigate();
-  const ativos = locais.filter((l) => l.status === "ativo");
-  return (
-    <div className="space-y-5 p-4">
-      <div><h1 className="text-xl font-semibold text-primary">Local de trabalho</h1><p className="text-sm text-muted-foreground">A câmera do local será vinculada a cada leitura.</p></div>
-      <div className="space-y-2">
-        {ativos.map((l) => {
-          const cam = cameras.find((c) => c.nome === l.camera);
-          const sel = m.local === l.nome;
-          return (
-            <button key={l.id} onClick={() => m.setLocal(l.nome)} className={cn("card-surface flex w-full items-center gap-3 p-4 text-left", sel && "border-brand ring-2 ring-brand")}>
-              <div className="flex-1">
-                <p className="font-semibold">{l.nome}</p>
-                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Camera className="h-3 w-3" />{l.camera}</p>
-              </div>
-              <StatusBadge status={cam?.status ?? "offline"} />
-              {sel && <Check className="h-5 w-5 text-brand" />}
-            </button>
-          );
-        })}
-      </div>
-      <div>
-        <h2 className="mb-2 font-semibold text-primary">Leitor utilizado</h2>
-        <div className="grid grid-cols-2 gap-2">
-          {dispositivos.map((d) => (
-            <button key={d.id} onClick={() => m.setLeitor(d.nome)} className={cn("card-surface p-3 text-left text-sm", m.leitor === d.nome && "border-brand ring-2 ring-brand")}>
-              <Cpu className="mb-1 h-4 w-4 text-brand" /><p className="font-medium">{d.nome}</p><p className="font-mono text-xs text-muted-foreground">{d.codigo}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-      <Button className="h-14 w-full text-lg" disabled={!m.local || !m.leitor} onClick={() => { toast.success("Operação iniciada"); nav({ to: "/mobile/leitura" }); }}>Iniciar operação</Button>
-    </div>
-  );
-}
+export const Route=createFileRoute("/mobile/local")({head:()=>meta("Coletor — Local","Seleção real do local e dispositivo Zebra."),component:MLocal});
+type Location={id:string;name:string;active:boolean;primary_camera_id:string|null};type Device={id:string;name:string;serial_number:string;location_id:string|null;active:boolean};
+function MLocal(){const m=useMobile();const nav=useNavigate();const [locations,setLocations]=useState<Location[]>([]);const [devices,setDevices]=useState<Device[]>([]);const [loading,setLoading]=useState(true);useEffect(()=>{Promise.all([api<Page<Location>>("/api/locations?limit=100&offset=0"),api<Page<Device>>("/api/devices?limit=100&offset=0")]).then(([l,d])=>{setLocations(l.items.filter(x=>x.active));setDevices(d.items.filter(x=>x.active));}).catch(e=>toast.error(e instanceof Error?e.message:"Falha ao carregar dados reais")).finally(()=>setLoading(false));},[]);return <div className="space-y-5 p-4"><div><h1 className="text-xl font-semibold text-primary">Local de trabalho</h1><p className="text-sm text-muted-foreground">Selecione registros cadastrados no banco.</p></div>{loading?<Loader2 className="mx-auto h-6 w-6 animate-spin"/>:<><div className="space-y-2">{locations.map(l=><button key={l.id} onClick={()=>m.setLocal(l.id)} className={cn("card-surface flex w-full items-center gap-3 p-4 text-left",m.local===l.id&&"border-brand ring-2 ring-brand")}><div className="flex-1"><p className="font-semibold">{l.name}</p><p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><Camera className="h-3 w-3"/>{l.primary_camera_id??"Sem câmera principal"}</p></div><StatusBadge status={l.primary_camera_id?"online":"pendente"}/>{m.local===l.id&&<Check className="h-5 w-5 text-brand"/>}</button>)}</div><div><h2 className="mb-2 font-semibold text-primary">Leitor utilizado</h2><div className="grid grid-cols-2 gap-2">{devices.map(d=><button key={d.id} onClick={()=>m.setLeitor(d.id)} className={cn("card-surface p-3 text-left text-sm",m.leitor===d.id&&"border-brand ring-2 ring-brand")}><Cpu className="mb-1 h-4 w-4 text-brand"/><p className="font-medium">{d.name}</p><p className="font-mono text-xs text-muted-foreground">{d.serial_number}</p></button>)}</div></div><Button className="h-14 w-full text-lg" disabled={!m.local||!m.leitor} onClick={()=>{toast.success("Operação iniciada");nav({to:"/mobile/leitura"});}}>Iniciar operação</Button></>}{!loading&&!locations.length&&<p className="text-sm text-muted-foreground">Nenhum local ativo cadastrado.</p>}</div>}

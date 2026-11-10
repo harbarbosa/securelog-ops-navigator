@@ -6,8 +6,9 @@ import {pagination} from './validation.js';
 export async function registerReadingSearch(app:FastifyInstance){
  app.get('/api/search/readings',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;
-  const q=pagination.extend({code:z.string().max(512).optional(),location_id:z.string().uuid().optional(),from:z.string().datetime({offset:true}).optional(),to:z.string().datetime({offset:true}).optional()}).parse(req.query);
+  const q=pagination.extend({id:z.string().uuid().optional(),code:z.string().max(512).optional(),location_id:z.string().uuid().optional(),from:z.string().datetime({offset:true}).optional(),to:z.string().datetime({offset:true}).optional()}).parse(req.query);
   const params:unknown[]=[];const where:string[]=[];
+  if(q.id){params.push(q.id);where.push(`r.id=$${params.length}`);}
   if(q.code){params.push('%'+q.code.replace(/[\\%_]/g,'\\$&')+'%');where.push(`r.code ILIKE $${params.length} ESCAPE '\\'`);}
   if(q.location_id){params.push(q.location_id);where.push(`r.location_id=$${params.length}`);}
   if(q.from){params.push(q.from);where.push(`r.occurred_at >= $${params.length}`);}

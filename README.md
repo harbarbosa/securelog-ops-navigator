@@ -1,8 +1,8 @@
 # Securelog Ops Navigator
 
-Crie somente a interface gráfica e o protótipo navegável do sistema SecureLog.
+O SecureLog é um sistema de rastreabilidade logística com painel administrativo e aplicação para coletores Zebra.
 
-Não implemente backend, banco de dados, autenticação real, integração com NVR, leitores Zebra, n8n ou APIs. Use dados fictícios/mockados e estados locais apenas para demonstrar a navegação e os fluxos da interface.
+O projeto possui backend Fastify/TypeScript, PostgreSQL, autenticação por sessão para usuários, tokens para dispositivos e APIs para locais, equipamentos e leituras. As telas administrativas consultam a API e não devem inserir dados fictícios. Integrações ainda não configuradas (como mídia NVR e provisionamento Zebra) são exibidas como indisponíveis, sem simular resultados.
 
 O sistema terá duas interfaces:
 

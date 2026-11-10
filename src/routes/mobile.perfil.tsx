@@ -4,7 +4,7 @@ import { LogOut, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Confirm, meta } from "@/components/sl/ui";
 import { useMobile } from "@/components/sl/mobile-state";
-import { fmt } from "@/lib/mock";
+import { fmt } from "@/lib/format";
 
 export const Route = createFileRoute("/mobile/perfil")({
   head: () => meta("Coletor — Sessão", "Perfil do operador e dados da sessão no coletor Zebra."),

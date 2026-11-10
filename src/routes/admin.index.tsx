@@ -1,83 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Barcode, Camera, CheckCircle2, Clock, Cpu, Database, HardDrive, RefreshCw, ScanLine, Server, Wifi } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, PageHeader, StatusBadge, Table, Td, Th, meta } from "@/components/sl/ui";
-import { alertas, ago, fmt, leituras } from "@/lib/mock";
+import { api, type Page } from "@/lib/securelog-api";
+import { fmt } from "@/lib/mock";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin/")({
-  head: () => meta("Visão geral", "Indicadores de leituras, dispositivos, câmeras e gravadores em tempo real."),
-  component: Overview,
-});
+export const Route = createFileRoute("/admin/")({ head: () => meta("Visão geral", "Indicadores reais do SecureLog."), component: Overview });
+type Entity={id:string;name:string;active:boolean;last_seen_at?:string|null};
+type Reading={id:string;code:string;occurred_at:string;location_name:string;camera_name:string|null;device_id:string};
 
-const stats = [
-  { label: "Leituras hoje", value: "1.284", sub: "+12% vs. ontem", icon: ScanLine },
-  { label: "Códigos únicos", value: "1.137", sub: "88,5% do total", icon: Barcode },
-  { label: "Dispositivos ativos", value: "4 / 5", sub: "1 offline", icon: Cpu, warn: true },
-  { label: "Câmeras conectadas", value: "5 / 6", sub: "CAM-EXP-03 sem sinal", icon: Camera, warn: true },
-  { label: "Gravadores online", value: "2 / 3", sub: "DVR-EXP-01 offline", icon: HardDrive, warn: true },
-  { label: "Pendentes de sincronização", value: "28", sub: "em 3 leitores", icon: RefreshCw, warn: true },
-];
-
-function Overview() {
-  const ops = [
-    { label: "Servidor", value: "Online", ok: true, icon: Server },
-    { label: "Banco de dados", value: "Online", ok: true, icon: Database },
-    { label: "Leitores conectados", value: "4 de 5", ok: false, icon: Wifi },
-    { label: "Gravadores conectados", value: "2 de 3", ok: false, icon: HardDrive },
-    { label: "Último heartbeat enviado", value: fmt(ago(0.5)), ok: true, icon: CheckCircle2 },
-    { label: "Próxima verificação prevista", value: fmt(new Date(ago(0).getTime() + 4.5 * 60000)), ok: true, icon: Clock },
-  ];
-  return (
-    <>
-      <PageHeader title="Visão geral" crumbs={["Visão geral"]} actions={<span className="text-xs text-muted-foreground">Atualizado em {fmt(ago(0))}</span>} />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        {stats.map((s) => (
-          <div key={s.label} className="card-surface p-4">
-            <div className="flex items-start justify-between">
-              <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
-              <span className="grid h-8 w-8 place-items-center rounded-md bg-brand-soft text-brand"><s.icon className="h-4 w-4" /></span>
-            </div>
-            <p className="mt-2 text-2xl font-semibold text-primary">{s.value}</p>
-            <p className={cn("text-xs", s.warn ? "text-warning" : "text-success")}>{s.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <Card title="Status operacional" className="xl:col-span-2">
-          <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
-            {ops.map((o) => (
-              <div key={o.label} className="flex items-center gap-3 bg-card p-4">
-                <span className={cn("grid h-9 w-9 place-items-center rounded-md", o.ok ? "bg-success-soft text-success" : "bg-warning-soft text-warning")}><o.icon className="h-4 w-4" /></span>
-                <div><p className="text-xs text-muted-foreground">{o.label}</p><p className="text-sm font-medium">{o.value}</p></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card title="Alertas recentes" action={<Link to="/admin/monitoramento" className="text-xs text-brand hover:underline">Ver monitoramento</Link>}>
-          <ul className="divide-y">
-            {alertas.map((a) => (
-              <li key={a.id} className="flex gap-3 px-5 py-3">
-                <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", a.nivel === "erro" ? "text-destructive" : "text-warning")} />
-                <div><p className="text-sm font-medium">{a.tipo}</p><p className="text-xs text-muted-foreground">{a.texto}</p><p className="font-mono text-[11px] text-muted-foreground">{fmt(a.data)}</p></div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      <Card title="Últimas leituras" className="mt-6" action={<Link to="/admin/leituras" className="text-xs text-brand hover:underline">Ver todas</Link>}>
-        <Table head={<><Th>Código</Th><Th>Data e hora</Th><Th>Usuário</Th><Th>Local</Th><Th>Dispositivo</Th><Th>Câmera</Th><Th>Status</Th><Th /></>}>
-          {leituras.slice(0, 8).map((l) => (
-            <tr key={l.id} className="hover:bg-muted/40">
-              <Td className="font-mono">{l.codigo}</Td><Td>{fmt(l.data)}</Td><Td>{l.usuario}</Td><Td>{l.local}</Td><Td>{l.dispositivo}</Td><Td>{l.camera}</Td>
-              <Td><StatusBadge status={l.status} /></Td>
-              <Td><Button asChild size="sm" variant="outline"><Link to="/admin/leituras/$id" params={{ id: l.id }}>Consultar</Link></Button></Td>
-            </tr>
-          ))}
-        </Table>
-      </Card>
-    </>
-  );
+function Overview(){
+ const [loading,setLoading]=useState(true);const [readings,setReadings]=useState<Reading[]>([]);const [devices,setDevices]=useState<Entity[]>([]);const [cameras,setCameras]=useState<Entity[]>([]);const [recorders,setRecorders]=useState<Entity[]>([]);
+ useEffect(()=>{let active=true;Promise.all([api<Page<Reading>>("/api/search/readings?limit=8&offset=0"),api<{items:Entity[]}>("/api/devices?limit=100&offset=0"),api<{items:Entity[]}>("/api/cameras?limit=100&offset=0"),api<{items:Entity[]}>("/api/recorders?limit=100&offset=0")]).then(([r,d,c,g])=>{if(!active)return;setReadings(r.items);setDevices(d.items);setCameras(c.items);setRecorders(g.items);}).catch(e=>toast.error(e instanceof Error?e.message:"Falha ao carregar visão geral")).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+ const today=new Date();today.setHours(0,0,0,0);const todayCount=readings.filter(r=>new Date(r.occurred_at)>=today).length;
+ const stats=[{label:"Leituras hoje",value:String(todayCount),sub:"dados do banco",icon:ScanLine},{label:"Códigos únicos",value:String(new Set(readings.map(r=>r.code)).size),sub:"últimas leituras",icon:Barcode},{label:"Dispositivos ativos",value:`${devices.filter(x=>x.active).length} / ${devices.length}`,sub:"cadastro real",icon:Cpu},{label:"Câmeras cadastradas",value:String(cameras.length),sub:"cadastro real",icon:Camera},{label:"Gravadores ativos",value:`${recorders.filter(x=>x.active).length} / ${recorders.length}`,sub:"status cadastral",icon:HardDrive},{label:"Pendentes de sincronização",value:"—",sub:"não informado pela API",icon:RefreshCw,warn:true}];
+ const ops=[{label:"Servidor",value:loading?"Consultando…":"Online",ok:!loading,icon:Server},{label:"Banco de dados",value:loading?"Consultando…":"Online",ok:!loading,icon:Database},{label:"Leitores cadastrados",value:String(devices.length),ok:true,icon:Wifi},{label:"Gravadores cadastrados",value:String(recorders.length),ok:true,icon:HardDrive},{label:"Última leitura",value:readings[0]?fmt(readings[0].occurred_at):"Nenhuma",ok:true,icon:CheckCircle2},{label:"Atualização",value:fmt(new Date()),ok:true,icon:Clock}];
+ const alerts=devices.filter(x=>!x.active);
+ return <><PageHeader title="Visão geral" crumbs={["Visão geral"]} actions={<span className="text-xs text-muted-foreground">Atualizado em {fmt(new Date())}</span>}/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">{stats.map(s=><div key={s.label} className="card-surface p-4"><div className="flex items-start justify-between"><p className="text-xs font-medium text-muted-foreground">{s.label}</p><span className="grid h-8 w-8 place-items-center rounded-md bg-brand-soft text-brand"><s.icon className="h-4 w-4"/></span></div><p className="mt-2 text-2xl font-semibold text-primary">{s.value}</p><p className={cn("text-xs",s.warn?"text-warning":"text-success")}>{s.sub}</p></div>)}</div><div className="mt-6 grid gap-6 xl:grid-cols-3"><Card title="Status operacional" className="xl:col-span-2"><div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">{ops.map(o=><div key={o.label} className="flex items-center gap-3 bg-card p-4"><span className={cn("grid h-9 w-9 place-items-center rounded-md",o.ok?"bg-success-soft text-success":"bg-warning-soft text-warning")}><o.icon className="h-4 w-4"/></span><div><p className="text-xs text-muted-foreground">{o.label}</p><p className="text-sm font-medium">{o.value}</p></div></div>)}</div></Card><Card title="Alertas recentes" action={<Link to="/admin/monitoramento" className="text-xs text-brand hover:underline">Ver monitoramento</Link>}><ul className="divide-y">{alerts.length===0&&<li className="px-5 py-4 text-sm text-muted-foreground">Nenhum alerta cadastral.</li>}{alerts.map(a=><li key={a.id} className="flex gap-3 px-5 py-3"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive"/><div><p className="text-sm font-medium">Dispositivo inativo</p><p className="text-xs text-muted-foreground">{a.name}</p></div></li>)}</ul></Card></div><Card title="Últimas leituras" className="mt-6" action={<Link to="/admin/leituras" className="text-xs text-brand hover:underline">Ver todas</Link>}><Table head={<><Th>Código</Th><Th>Data e hora</Th><Th>Local</Th><Th>Dispositivo</Th><Th>Câmera</Th><Th>Status</Th><Th/></>}>{readings.map(l=><tr key={l.id} className="hover:bg-muted/40"><Td className="font-mono">{l.code}</Td><Td>{fmt(l.occurred_at)}</Td><Td>{l.location_name}</Td><Td className="font-mono text-xs">{l.device_id}</Td><Td>{l.camera_name??"—"}</Td><Td><StatusBadge status="sincronizado"/></Td><Td><Button asChild size="sm" variant="outline"><Link to="/admin/leituras">Consultar</Link></Button></Td></tr>)}</Table>{!loading&&!readings.length&&<p className="p-4 text-sm text-muted-foreground">Nenhuma leitura encontrada.</p>}</Card></>;
 }

@@ -1,6 +1,6 @@
 import {createFileRoute} from "@tanstack/react-router";
 import {useEffect,useState} from "react";
-import {Pencil,Plus,Power} from "lucide-react";
+import {Pencil,Plus,Power,Trash2} from "lucide-react";
 import {toast} from "sonner";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
@@ -23,10 +23,11 @@ function Cameras(){
   try{if(edit.id)await securelog.update("cameras",edit.id,data);else await securelog.create("cameras",data);toast.success("Câmera salva");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar câmera");}
  };
  const toggle=async(r:Camera)=>{try{await securelog.update("cameras",r.id,{active:!r.active});await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao atualizar");}};
+ const remove=async(r:Camera)=>{if(!window.confirm(`Excluir a câmera “${r.name}”? Essa ação não pode ser desfeita.`))return;try{await securelog.delete("cameras",r.id);toast.success("Câmera excluída");await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao excluir câmera");}};
  return <>
   <PageHeader title="Câmeras" crumbs={["Configurações","Câmeras"]} actions={<Button onClick={()=>setEdit({...blank,recorder_id:recorders.find(r=>r.active)?.id??""})}><Plus className="h-4 w-4"/>Nova câmera</Button>}/>
   <Card><Table head={<><Th>Nome</Th><Th>Gravador</Th><Th>Canal</Th><Th>Status cadastral</Th><Th>Ações</Th></>}>
-  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td>{recorders.find(g=>g.id===r.recorder_id)?.name??"—"}</Td><Td>{r.channel}</Td><Td>{r.active?"Ativa":"Inativa"}</Td><Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({...r})}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label="Ativar ou desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button></Td></tr>)}
+  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td>{recorders.find(g=>g.id===r.recorder_id)?.name??"—"}</Td><Td>{r.channel}</Td><Td>{r.active?"Ativa":"Inativa"}</Td><Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({...r})}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label={r.active?"Desativar":"Ativar"} onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label="Excluir" onClick={()=>void remove(r)}><Trash2 className="h-4 w-4 text-destructive"/></Button></Td></tr>)}
   </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&!rows.length&&<p className="p-4 text-sm text-muted-foreground">Nenhuma câmera cadastrada.</p>}</Card>
   {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar câmera":"Nova câmera"} onSave={()=>void save()}>
   <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>

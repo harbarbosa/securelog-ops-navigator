@@ -1,6 +1,6 @@
 import {createFileRoute} from "@tanstack/react-router";
 import {useEffect,useState} from "react";
-import {Pencil,Plus,Power} from "lucide-react";
+import {Pencil,Plus,Power,Trash2} from "lucide-react";
 import {toast} from "sonner";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
@@ -21,10 +21,11 @@ function Gravadores(){
   try{if(edit.id)await securelog.update("recorders",edit.id,data);else await securelog.create("recorders",data);toast.success("Gravador salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar");}
  };
  const toggle=async(r:Recorder)=>{try{await securelog.update("recorders",r.id,{active:!r.active});await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao atualizar");}};
+ const remove=async(r:Recorder)=>{if(!window.confirm(`Excluir o gravador “${r.name}”? Essa ação não pode ser desfeita.`))return;try{await securelog.delete("recorders",r.id);toast.success("Gravador excluído");await load();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao excluir gravador");}};
  return <>
  <PageHeader title="Gravadores" crumbs={["Configurações","Gravadores"]} actions={<Button onClick={()=>setEdit({...blank})}><Plus className="h-4 w-4"/>Novo gravador</Button>}/>
  <Card><Table head={<><Th>Nome</Th><Th>Endereço</Th><Th>Protocolo</Th><Th>Status cadastral</Th><Th>Última comunicação</Th><Th>Ações</Th></>}>
- {rows.map(r=><tr key={r.id}><Td>{r.name}</Td><Td className="font-mono text-xs">{r.host}:{r.port}</Td><Td>{r.protocol}</Td><Td>{r.active?"Ativo":"Inativo"}</Td><Td>{r.last_seen_at?new Date(r.last_seen_at).toLocaleString("pt-BR"):"Não verificada"}</Td><Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,host:r.host,port:r.port,protocol:r.protocol,active:r.active})}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label="Ativar ou desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button></Td></tr>)}
+ {rows.map(r=><tr key={r.id}><Td>{r.name}</Td><Td className="font-mono text-xs">{r.host}:{r.port}</Td><Td>{r.protocol}</Td><Td>{r.active?"Ativo":"Inativo"}</Td><Td>{r.last_seen_at?new Date(r.last_seen_at).toLocaleString("pt-BR"):"Não verificada"}</Td><Td><Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,host:r.host,port:r.port,protocol:r.protocol,active:r.active})}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label={r.active?"Desativar":"Ativar"} onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button><Button size="icon" variant="ghost" aria-label="Excluir" onClick={()=>void remove(r)}><Trash2 className="h-4 w-4 text-destructive"/></Button></Td></tr>)}
  </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&!rows.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum gravador cadastrado.</p>}</Card>
  {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar gravador":"Novo gravador"} onSave={()=>void save()}>
  <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>

@@ -39,9 +39,16 @@ export async function registerCrud(app:FastifyInstance){
   const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin'],reply))return;
   const {entity,id}=z.object({entity:z.string(),id:uuid}).parse(req.params);
   const table=entityName(entity);if(!table)return reply.code(404).send({error:'Recurso não encontrado'});
-  const result=await pool.query(`UPDATE "${table}" SET active=false WHERE id=$1 RETURNING id`,[id]);
-  if(!result.rowCount)return reply.code(404).send({error:'Registro não encontrado'});
-  await pool.query('INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,$2,$3,$4)',[user.id,'deactivate',table,id]);
-  return {id,active:false};
+  try {
+   const result=await pool.query(`DELETE FROM "${table}" WHERE id=$1 RETURNING id`,[id]);
+   if(!result.rowCount)return reply.code(404).send({error:'Registro não encontrado'});
+   await pool.query('INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,$2,$3,$4)',[user.id,'delete',table,id]);
+   return {id,deleted:true};
+  } catch(error) {
+   if(error && typeof error==='object' && 'code' in error && error.code==='23503') {
+    return reply.code(409).send({error:'Não é possível excluir este registro porque ele possui vínculos. Desative-o para mantê-lo no histórico.'});
+   }
+   throw error;
+  }
  });
 }

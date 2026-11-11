@@ -99,7 +99,7 @@ async function exportAvi(job:PlaybackJob){
  const output=join(job.dir,'recording.avi');
  const existing=await stat(output).catch(()=>null);if(existing?.size)return output;
  if(!job.recorder.username||!job.recorder.password_ciphertext)throw new Error('Credenciais do gravador não configuradas');
- const password=decryptSecret(job.recorder.password_ciphertext);const response=await digestGet(`${recorderBase(job.recorder)}/cgi-bin/RPC_Loadfile${job.filePath}`,job.recorder.username,password,600000);
+ const password=decryptSecret(job.recorder.password_ciphertext);const response=await digestGet(`${recorderBase(job.recorder)}/cgi-bin/RPC_Loadfile${job.filePath}`,job.recorder.username,password,1800000);
  if(!response.ok||!response.body)throw new Error(`NVR recusou o arquivo de gravação (${response.status})`);
  const child=spawn(requireFfmpeg(),['-hide_banner','-loglevel','error','-i','pipe:0','-map','0:v:0','-an','-c:v','mpeg4','-q:v','5','-f','avi',output],{windowsHide:true});
  const inputStream=Readable.fromWeb(response.body as never);inputStream.on('error',()=>{if(!child.killed)child.kill();});child.stdin?.on('error',()=>undefined);inputStream.pipe(child.stdin!);

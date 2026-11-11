@@ -15,6 +15,15 @@ type Recorder={id:string;host:string;port:number;rtsp_port:number;protocol:strin
 type MediaFile={channel:number;start_time:string;end_time:string;file_path:string;length?:number;type?:string};
 const jobs=new Map<string,{dir:string;process:ReturnType<typeof spawn>;created:number}>();
 const delay=(ms:number)=>new Promise<void>((resolve)=>setTimeout(resolve,ms));
+async function readPlaybackFile(path:string){
+ const deadline=Date.now()+10000;
+ while(Date.now()<deadline){
+  const data=await readFile(path).catch(()=>null);
+  if(data?.length)return data;
+  await delay(250);
+ }
+ return null;
+}
 async function waitForPlaylist(path:string,child:ReturnType<typeof spawn>){
  const deadline=Date.now()+20000;
  while(Date.now()<deadline){
@@ -108,6 +117,6 @@ export async function registerMedia(app:FastifyInstance){
  app.get('/api/media/playback/:id/:file',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;
   const {id,file}=z.object({id:z.string().uuid(),file:z.string().regex(/^[a-zA-Z0-9._-]+$/)}).parse(req.params);const job=jobs.get(id);if(!job)return reply.code(404).send({error:'Reprodução expirada'});
-  const data=await readFile(join(job.dir,basename(file))).catch(()=>null);if(!data)return reply.code(404).send({error:'Segmento ainda não disponível'});reply.type(file.endsWith('.m3u8')?'application/vnd.apple.mpegurl':'video/mp2t');return data;
+  const data=await readPlaybackFile(join(job.dir,basename(file)));if(!data)return reply.code(404).send({error:'Segmento ainda não disponível'});reply.header('Cache-Control','no-store');reply.type(file.endsWith('.m3u8')?'application/vnd.apple.mpegurl':'video/mp2t');return data;
  });
 }

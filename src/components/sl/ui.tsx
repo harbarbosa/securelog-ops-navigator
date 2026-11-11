@@ -172,12 +172,16 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
     if (!popup || !playlist || !videoRef.current) return;
     const video = videoRef.current;
     if (Hls.isSupported()) {
-      const hls = new Hls({ xhrSetup: (xhr) => { xhr.withCredentials = true; } });
+      const hls = new Hls({
+        autoStartLoad: true,
+        lowLatencyMode: false,
+        xhrSetup: (xhr) => { xhr.withCredentials = true; },
+      });
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) toast.error("Falha ao carregar a gravação no navegador");
+        if (data.fatal) toast.error(`Falha ao carregar a gravação (${data.details})`);
       });
       hls.on(Hls.Events.MANIFEST_PARSED, () => { void video.play().catch(() => undefined); });
-      hls.loadSource(playlist); hls.attachMedia(video);
+      hls.attachMedia(video); hls.loadSource(playlist);
       return () => hls.destroy();
     }
     video.src = playlist;

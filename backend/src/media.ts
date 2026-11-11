@@ -61,10 +61,10 @@ function nvrTime(value:string){
  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 function rtspTime(value:string){return nvrTime(value).replace(' ','_').replace(/:/g,'_');}
+function wallTimeMs(value:string){return Date.parse(value.replace(' ','T').replace(/Z$/,'')+'Z');}
 function playbackOffset(file:MediaFile,start:string){
- const toWallMs=(value:string)=>Date.parse(value.replace(' ','T').replace(/Z$/,'')+'Z');
- const offset=(toWallMs(nvrTime(start))-toWallMs(file.start_time))/1000;
- const length=(toWallMs(file.end_time)-toWallMs(file.start_time))/1000;
+ const offset=(wallTimeMs(nvrTime(start))-wallTimeMs(file.start_time))/1000;
+ const length=(wallTimeMs(file.end_time)-wallTimeMs(file.start_time))/1000;
  return offset>=0&&offset<length?offset:0;
 }
 function parseMediaFiles(body:string):MediaFile[]{
@@ -80,10 +80,11 @@ async function searchRecorder(r:Recorder,channel:number,start:string,end:string)
   const factory=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?action=factory.create`,r.username,password);const factoryText=await factory.text();
   object=factoryText.match(/(?:result|object)=([^\r\n]+)/i)?.[1]?.trim()??factoryText.trim();
   if(!object)throw new Error('O NVR não criou a pesquisa de gravações');
-  const params=new URLSearchParams({action:'findFile',object});params.set('condition.Channel',String(Math.max(1,channel)));params.set('condition.StartTime',nvrTime(start));params.set('condition.EndTime',nvrTime(end));params.set('condition.Types[0]','dav');params.set('condition.VideoStream','Main');
+  const params=new URLSearchParams({action:'findFile',object});params.set('condition.Channel',String(channel));params.set('condition.StartTime',nvrTime(start));params.set('condition.EndTime',nvrTime(end));params.set('condition.Types[0]','dav');params.set('condition.VideoStream','Main');
   const find=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${params}`,r.username,password);if(!find.ok)throw new Error(`NVR recusou a pesquisa (${find.status})`);
   const nextParams=new URLSearchParams({action:'findNextFile',object,count:'100'});const next=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${nextParams}`,r.username,password);if(!next.ok)throw new Error(`NVR recusou os resultados (${next.status})`);
-  return parseMediaFiles(await next.text());
+  const requestedStart=wallTimeMs(nvrTime(start));const requestedEnd=wallTimeMs(nvrTime(end));
+  return parseMediaFiles(await next.text()).filter(file=>wallTimeMs(file.end_time)>=requestedStart&&wallTimeMs(file.start_time)<=requestedEnd);
  } finally {
   if(object&&r.username&&r.password_ciphertext){const password=decryptSecret(r.password_ciphertext);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=close&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=destroy&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);}
  }

@@ -79,7 +79,10 @@ async function rpcPost(base:string,path:string,body:Record<string,unknown>,timeo
  const response=await fetch(`${base}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
  const text=await response.text();let data:RpcResponse;
  try{data=JSON.parse(text) as RpcResponse;}catch{throw new Error(`Resposta RPC inválida do NVR (${response.status})`);}
- if(!response.ok||(!allowResultFalse&&data.result===false))throw new Error(data.error?.message||`NVR recusou a operação RPC (${response.status})`);
+ if(!response.ok||(!allowResultFalse&&data.result===false)){
+  const method=String(body.method??'desconhecido');const detail=data.error?.message??(data.error?.code?`código ${data.error.code}`:data.params?JSON.stringify(data.params):'sem detalhes');
+  throw new Error(`NVR recusou a operação RPC ${method}: ${detail}`);
+ }
  return data;
 }
 async function rpcLogin(base:string,username:string,password:string){

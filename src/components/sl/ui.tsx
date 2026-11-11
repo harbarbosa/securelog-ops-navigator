@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmt, toInput, type Status } from "@/lib/format";
 import { api, securelogApiBase } from "@/lib/securelog-api";
 import Hls from "hls.js";
@@ -150,8 +149,8 @@ export function CameraFrame({ camera, time, offline, children, className }: { ca
       ) : (
         <div className="grid h-full place-items-center text-center text-sm"><div><ImageOff className="mx-auto mb-2 h-8 w-8 opacity-60" />Nenhuma mídia real disponível</div></div>
       )}
-      <div className="absolute left-2 top-2 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{camera}</div>
-      <div className="absolute right-2 top-2 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{fmt(time)}</div>
+      <div className="absolute left-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{camera}</div>
+      <div className="absolute right-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{fmt(time)}</div>
       {children}
     </div>
   );
@@ -165,11 +164,10 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const [ini, setIni] = useState(toInput(new Date(data.getTime() - 30000)));
   const [fim, setFim] = useState(toInput(new Date(data.getTime() + 30000)));
   const [playlist, setPlaylist] = useState<string | null>(null);
-  const [popup, setPopup] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!popup || !playlist || !videoRef.current) return;
+    if (!playlist || !videoRef.current) return;
     const video = videoRef.current;
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -187,7 +185,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
     video.src = playlist;
     void video.play().catch(() => undefined);
     return;
-  }, [popup, playlist]);
+  }, [playlist]);
 
   const buscar = async () => {
     if (!cameraId) { toast.error("A leitura não possui câmera associada"); return; }
@@ -197,16 +195,17 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
       const found = await api<{ items: MediaFile[] }>(`/api/media/search?${query}`);
       if (!found.items.length) { setState("sem-video"); toast.info("Nenhuma gravação encontrada no período"); return; }
       const job = await api<{ playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
-      setPlaylist(`${securelogApiBase}${job.playlist}`); setState("video"); setPopup(true);
+      setPlaylist(`${securelogApiBase}${job.playlist}`); setState("video");
     } catch (error) { setState("falha"); toast.error(error instanceof Error ? error.message : "Falha ao consultar o gravador"); }
   };
   const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">{label[state]}<span className="text-xs text-muted-foreground">{gravador}</span></div>
-    <CameraFrame camera={camera} time={data} offline={state !== "video"} />
+    <CameraFrame camera={camera} time={data} offline={state !== "video"}>
+      {playlist && <video ref={videoRef} crossOrigin="use-credentials" controls autoPlay muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" />}
+    </CameraFrame>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
     <Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>
-    <Dialog open={popup} onOpenChange={setPopup}><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>{camera} — gravação do período selecionado</DialogTitle></DialogHeader><video ref={videoRef} crossOrigin="use-credentials" controls autoPlay muted playsInline className="aspect-video w-full rounded-md bg-black" /></DialogContent></Dialog>
   </div>;
 }
 

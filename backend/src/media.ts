@@ -51,8 +51,13 @@ async function digestGet(url:string,username:string,password:string,timeoutMs=50
  return fetch(url,{headers:{Authorization:authorization},signal:AbortSignal.timeout(timeoutMs)});
 }
 function recorderBase(r:Recorder){return `${r.protocol.toLowerCase()==='https'?'https':'http'}://${r.host}:${r.port}`;}
-function nvrTime(value:string){return value.slice(0,19).replace('T',' ');}
-function rtspTime(value:string){return value.slice(0,19).replace('T','_').replace(/:/g,'_');}
+const nvrTimeZone=process.env.NVR_TIME_ZONE??'America/Sao_Paulo';
+function nvrTime(value:string){
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:nvrTimeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value));
+ const get=(type:Intl.DateTimeFormatPartTypes)=>parts.find(x=>x.type===type)?.value??'';
+ return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
+function rtspTime(value:string){return nvrTime(value).replace(' ','_').replace(/:/g,'_');}
 function parseMediaFiles(body:string):MediaFile[]{
  const lines=body.split(/\r?\n/);const found=Number(lines.find(x=>x.startsWith('found='))?.split('=')[1]??0);if(!found)return [];
  const files=new Map<number,Record<string,string>>();

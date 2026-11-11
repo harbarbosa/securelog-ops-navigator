@@ -161,8 +161,8 @@ type MediaFile = { start_time: string; end_time: string; file_path: string };
 
 export function MediaPanel({ camera, gravador, cameraId, data }: { camera: string; gravador: string; cameraId?: string | null; data: Date }) {
   const [state, setState] = useState<MediaState>("idle");
-  const [ini, setIni] = useState(toInput(new Date(data.getTime() - 30000)));
-  const [fim, setFim] = useState(toInput(new Date(data.getTime() + 30000)));
+  const [ini, setIni] = useState(toInput(new Date(data.getTime() - 15000)));
+  const [fim, setFim] = useState(toInput(new Date(data.getTime() + 15000)));
   const [playlist, setPlaylist] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -204,7 +204,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
     <CameraFrame camera={camera} time={data} offline={state !== "video"}>
       {playlist && <video ref={videoRef} crossOrigin="use-credentials" controls autoPlay muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" />}
     </CameraFrame>
-    <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
+    <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" step="1" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" step="1" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
     <Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>
   </div>;
 }

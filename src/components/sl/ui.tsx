@@ -164,6 +164,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const [ini, setIni] = useState(toInput(new Date(data.getTime() - 15000)));
   const [fim, setFim] = useState(toInput(new Date(data.getTime() + 15000)));
   const [playlist, setPlaylist] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -194,8 +195,8 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
       const query = `camera_id=${encodeURIComponent(cameraId)}&start=${encodeURIComponent(new Date(ini).toISOString())}&end=${encodeURIComponent(new Date(fim).toISOString())}`;
       const found = await api<{ items: MediaFile[] }>(`/api/media/search?${query}`);
       if (!found.items.length) { setState("sem-video"); toast.info("Nenhuma gravação encontrada no período"); return; }
-      const job = await api<{ playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
-      setPlaylist(`${securelogApiBase}${job.playlist}`); setState("video");
+      const job = await api<{ id: string; playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
+      setPlaylist(`${securelogApiBase}${job.playlist}`); setDownloadUrl(`${securelogApiBase}/api/media/download/${job.id}.avi`); setState("video");
     } catch (error) { setState("falha"); toast.error(error instanceof Error ? error.message : "Falha ao consultar o gravador"); }
   };
   const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
@@ -205,7 +206,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
       {playlist && <video ref={videoRef} crossOrigin="use-credentials" controls autoPlay muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" />}
     </CameraFrame>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" step="1" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" step="1" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
-    <Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>
+    <div className="flex flex-wrap gap-2"><Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>{downloadUrl && <Button asChild variant="outline"><a href={downloadUrl} download><Download className="h-4 w-4" />Baixar vídeo completo (.avi)</a></Button>}</div>
   </div>;
 }
 

@@ -1,6 +1,7 @@
 import type {FastifyInstance} from 'fastify';
 import {createHash,randomBytes} from 'node:crypto';
-import {access,mkdir,readFile,rm} from 'node:fs/promises';
+import {access,mkdir,readFile,rm,stat} from 'node:fs/promises';
+import {createReadStream} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,basename} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -13,7 +14,8 @@ import {decryptSecret} from './secret.js';
 
 type Recorder={id:string;host:string;port:number;rtsp_port:number;protocol:string;username:string|null;password_ciphertext:string|null};
 type MediaFile={channel:number;start_time:string;end_time:string;file_path:string;length?:number;type?:string};
-const jobs=new Map<string,{dir:string;process:ReturnType<typeof spawn>;created:number}>();
+type PlaybackJob={dir:string;process:ReturnType<typeof spawn>;created:number;recorder:Recorder;filePath:string};
+const jobs=new Map<string,PlaybackJob>();
 const delay=(ms:number)=>new Promise<void>((resolve)=>setTimeout(resolve,ms));
 async function readPlaybackFile(path:string){
  const deadline=Date.now()+10000;
@@ -93,6 +95,17 @@ async function spawnPlayback(r:Recorder,channel:number,start:string,end:string,d
  child.on('close',()=>{setTimeout(()=>{void rm(dir,{recursive:true,force:true});},10*60*1000);});
  return child;
 }
+async function exportAvi(job:PlaybackJob){
+ const output=join(job.dir,'recording.avi');
+ const existing=await stat(output).catch(()=>null);if(existing?.size)return output;
+ if(!job.recorder.username||!job.recorder.password_ciphertext)throw new Error('Credenciais do gravador não configuradas');
+ const password=decryptSecret(job.recorder.password_ciphertext);const response=await digestGet(`${recorderBase(job.recorder)}/cgi-bin/RPC_Loadfile${job.filePath}`,job.recorder.username,password,600000);
+ if(!response.ok||!response.body)throw new Error(`NVR recusou o arquivo de gravação (${response.status})`);
+ const child=spawn(requireFfmpeg(),['-hide_banner','-loglevel','error','-i','pipe:0','-map','0:v:0','-an','-c:v','mpeg4','-q:v','5','-f','avi',output],{windowsHide:true});
+ const inputStream=Readable.fromWeb(response.body as never);inputStream.on('error',()=>{if(!child.killed)child.kill();});child.stdin?.on('error',()=>undefined);inputStream.pipe(child.stdin!);
+ await new Promise<void>((resolve,reject)=>{child.once('error',reject);child.once('close',(code)=>code===0?resolve():reject(new Error(`FFmpeg falhou ao gerar o AVI (código ${code??'desconhecido'})`)));});
+ return output;
+}
 export async function registerMedia(app:FastifyInstance){
  app.get('/api/media/search',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;
@@ -117,7 +130,13 @@ export async function registerMedia(app:FastifyInstance){
   try{files=await searchRecorder(recorder,recorder.channel,q.start,q.end);}catch(error){return reply.code(502).send({error:error instanceof Error?error.message:'Falha de comunicação com o gravador'});}
   if(!files.length)return reply.code(404).send({error:'Nenhuma gravação encontrada no período'});
   const id=randomUUID();const dir=join(tmpdir(),'securelog-media',id);await mkdir(dir,{recursive:true});
-  try{const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path);jobs.set(id,{dir,process:child,created:Date.now()});child.on('error',()=>jobs.delete(id));await waitForPlaylist(join(dir,'index.m3u8'),child);return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){const job=jobs.get(id);job?.process.kill();jobs.delete(id);await rm(dir,{recursive:true,force:true});return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao iniciar a reprodução'});}
+  try{const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path);jobs.set(id,{dir,process:child,created:Date.now(),recorder,filePath:files[0].file_path});child.on('error',()=>jobs.delete(id));await waitForPlaylist(join(dir,'index.m3u8'),child);return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){const job=jobs.get(id);job?.process.kill();jobs.delete(id);await rm(dir,{recursive:true,force:true});return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao iniciar a reprodução'});}
+ });
+ app.get('/api/media/download/:id.avi',async(req,reply)=>{
+  const user=await requireUser(req,reply);if(!user)return;
+  const {id}=z.object({id:z.string().uuid()}).parse(req.params);const job=jobs.get(id);if(!job)return reply.code(404).send({error:'Reprodução expirada'});
+  if(!job.recorder.username||!job.recorder.password_ciphertext)return reply.code(502).send({error:'Credenciais do gravador não configuradas'});
+  try{const output=await exportAvi(job);reply.header('Content-Disposition',`attachment; filename="securelog-${id}.avi"`);reply.header('Content-Length',String((await stat(output)).size));reply.type('video/x-msvideo');return reply.send(createReadStream(output));}catch(error){return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao gerar o AVI'});}
  });
  app.get('/api/media/playback/:id/:file',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;

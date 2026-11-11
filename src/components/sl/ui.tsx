@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, ImageOff, Loader2, Pause, Play, ScanLine, ShieldCheck, Video, AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, ImageOff, Loader2, Maximize2, Pause, Play, ScanLine, ShieldCheck, Video, AlertTriangle, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -156,7 +156,7 @@ export function CameraFrame({ camera, time, offline, children, className }: { ca
   );
 }
 
-type MediaState = "idle" | "consultando" | "video" | "sem-video" | "falha";
+type MediaState = "idle" | "consultando" | "carregando" | "video" | "sem-video" | "falha";
 type MediaFile = { start_time: string; end_time: string; file_path: string };
 
 export function MediaPanel({ camera, gravador, cameraId, data }: { camera: string; gravador: string; cameraId?: string | null; data: Date }) {
@@ -165,11 +165,23 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const [fim, setFim] = useState(toInput(new Date(data.getTime() + 15000)));
   const [playlist, setPlaylist] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!playlist || !videoRef.current) return;
     const video = videoRef.current;
+    let fragmentBuffered = !Hls.isSupported();
+    let canPlay = false;
+    const ready = () => {
+      if (!fragmentBuffered || !canPlay) return;
+      setVideoReady(true);
+      setState("video");
+      void video.play().catch(() => undefined);
+    };
+    const onCanPlay = () => { canPlay = true; ready(); };
+    video.addEventListener("canplay", onCanPlay);
     if (Hls.isSupported()) {
       const hls = new Hls({
         autoStartLoad: true,
@@ -179,34 +191,51 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) toast.error(`Falha ao carregar a gravação (${data.details})`);
       });
-      hls.on(Hls.Events.MANIFEST_PARSED, () => { void video.play().catch(() => undefined); });
+      hls.on(Hls.Events.FRAG_BUFFERED, () => { fragmentBuffered = true; ready(); });
       hls.attachMedia(video); hls.loadSource(playlist);
-      return () => hls.destroy();
+      return () => { video.removeEventListener("canplay", onCanPlay); hls.destroy(); };
     }
     video.src = playlist;
-    void video.play().catch(() => undefined);
-    return;
+    return () => video.removeEventListener("canplay", onCanPlay);
   }, [playlist]);
 
   const buscar = async () => {
     if (!cameraId) { toast.error("A leitura não possui câmera associada"); return; }
     setState("consultando");
+    setPlaylist(null); setDownloadUrl(null); setVideoReady(false);
     try {
       const query = `camera_id=${encodeURIComponent(cameraId)}&start=${encodeURIComponent(new Date(ini).toISOString())}&end=${encodeURIComponent(new Date(fim).toISOString())}`;
       const found = await api<{ items: MediaFile[] }>(`/api/media/search?${query}`);
       if (!found.items.length) { setState("sem-video"); toast.info("Nenhuma gravação encontrada no período"); return; }
       const job = await api<{ id: string; playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
-      setPlaylist(`${securelogApiBase}${job.playlist}`); setDownloadUrl(`${securelogApiBase}/api/media/download/${job.id}.avi`); setState("video");
+      setPlaylist(`${securelogApiBase}${job.playlist}`); setDownloadUrl(`${securelogApiBase}/api/media/download/${job.id}.avi`); setState("carregando");
     } catch (error) { setState("falha"); toast.error(error instanceof Error ? error.message : "Falha ao consultar o gravador"); }
   };
-  const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
+  const downloadVideo = async () => {
+    if (!downloadUrl || downloadLoading) return;
+    setDownloadLoading(true);
+    try {
+      const response = await fetch(downloadUrl, { credentials: "include" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao gerar o vídeo");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = "securelog-gravacao.avi"; anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao baixar o vídeo"); }
+    finally { setDownloadLoading(false); }
+  };
+  const fullscreen = () => { const video = videoRef.current; if (video?.requestFullscreen) void video.requestFullscreen(); };
+  const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, carregando: <StatusBadge status="sincronizando" label="Carregando vídeo" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">{label[state]}<span className="text-xs text-muted-foreground">{gravador}</span></div>
-    <CameraFrame camera={camera} time={data} offline={state !== "video"}>
-      {playlist && <video ref={videoRef} crossOrigin="use-credentials" controls autoPlay muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" />}
+    <CameraFrame camera={camera} time={data} offline={!videoReady} className="max-h-[360px]">
+      {playlist && <><video ref={videoRef} crossOrigin="use-credentials" controls muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" /><Button type="button" variant="secondary" size="icon" aria-label="Tela cheia" title="Tela cheia" onClick={fullscreen} disabled={!videoReady} className="absolute right-2 top-2 z-[2] bg-black/70 text-white hover:bg-black/90"><Maximize2 className="h-4 w-4" /></Button>{!videoReady && <div className="absolute inset-0 z-[3] grid place-items-center bg-black/65 text-white"><div className="text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" /><p className="text-sm">Carregando vídeo…</p><p className="mt-1 text-xs text-white/70">A reprodução começará quando estiver pronta</p></div></div>}</>}
     </CameraFrame>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" step="1" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" step="1" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
-    <div className="flex flex-wrap gap-2"><Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>{downloadUrl && <Button asChild variant="outline"><a href={downloadUrl} download><Download className="h-4 w-4" />Baixar vídeo completo (.avi)</a></Button>}</div>
+    <div className="flex flex-wrap gap-2"><Button onClick={() => void buscar()} disabled={state === "consultando" || state === "carregando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>{downloadUrl && <Button type="button" variant="outline" onClick={() => void downloadVideo()} disabled={downloadLoading || !videoReady}>{downloadLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Gerando download…</> : <><Download className="h-4 w-4" />Baixar vídeo completo (.avi)</>}</Button>}</div>
   </div>;
 }
 

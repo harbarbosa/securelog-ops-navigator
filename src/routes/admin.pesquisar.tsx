@@ -90,8 +90,8 @@ function Pesquisar() {
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
           <DialogHeader><DialogTitle>Detalhes da leitura{selected ? ` — ${selected.code}` : ""}</DialogTitle></DialogHeader>
           {selected && (
-            <div className="space-y-5">
-              <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 lg:grid-cols-[minmax(220px,0.75fr)_minmax(420px,1.25fr)] lg:items-start">
+              <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-1">
                 <div><p className="text-xs text-muted-foreground">Código</p><p className="font-mono font-semibold">{selected.code}</p></div>
                 <div><p className="text-xs text-muted-foreground">Data e hora</p><p className="font-medium">{fmt(selected.occurred_at)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Local</p><p className="font-medium">{selected.location_name}</p></div>
@@ -100,7 +100,7 @@ function Pesquisar() {
                 <div><p className="text-xs text-muted-foreground">Gravador</p><p className="font-medium">{selected.recorder_name ?? "Não informado"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge status="sincronizado" /></div>
               </div>
-              <MediaPanel key={selected.id} camera={selected.camera_name ?? "Câmera não vinculada"} gravador={selected.recorder_name ?? "Gravador não informado"} cameraId={selected.camera_id} data={new Date(selected.occurred_at)} />
+              <div className="min-w-0"><MediaPanel key={selected.id} camera={selected.camera_name ?? "Câmera não vinculada"} gravador={selected.recorder_name ?? "Gravador não informado"} cameraId={selected.camera_id} data={new Date(selected.occurred_at)} /></div>
             </div>
           )}
         </DialogContent>

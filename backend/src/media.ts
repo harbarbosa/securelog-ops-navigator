@@ -1,6 +1,6 @@
 import type {FastifyInstance} from 'fastify';
 import {createHash,randomBytes} from 'node:crypto';
-import {mkdir,readFile,rm} from 'node:fs/promises';
+import {access,mkdir,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,basename} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -14,6 +14,14 @@ import {decryptSecret} from './secret.js';
 type Recorder={id:string;host:string;port:number;rtsp_port:number;protocol:string;username:string|null;password_ciphertext:string|null};
 type MediaFile={channel:number;start_time:string;end_time:string;file_path:string;length?:number;type?:string};
 const jobs=new Map<string,{dir:string;process:ReturnType<typeof spawn>;created:number}>();
+const delay=(ms:number)=>new Promise<void>((resolve)=>setTimeout(resolve,ms));
+async function waitForPlaylist(path:string,child:ReturnType<typeof spawn>){
+ const deadline=Date.now()+20000;
+ while(Date.now()<deadline){
+  try{await access(path);return;}catch{if(child.exitCode!==null)break;await delay(250);}
+ }
+ throw new Error('FFmpeg não gerou a playlist de reprodução');
+}
 
 function parseDigest(header:string){
  const params:Record<string,string>={};
@@ -95,7 +103,7 @@ export async function registerMedia(app:FastifyInstance){
   try{files=await searchRecorder(recorder,recorder.channel,q.start,q.end);}catch(error){return reply.code(502).send({error:error instanceof Error?error.message:'Falha de comunicação com o gravador'});}
   if(!files.length)return reply.code(404).send({error:'Nenhuma gravação encontrada no período'});
   const id=randomUUID();const dir=join(tmpdir(),'securelog-media',id);await mkdir(dir,{recursive:true});
-  try{const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path);jobs.set(id,{dir,process:child,created:Date.now()});child.on('error',()=>jobs.delete(id));return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){await rm(dir,{recursive:true,force:true});throw error;}
+  try{const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path);jobs.set(id,{dir,process:child,created:Date.now()});child.on('error',()=>jobs.delete(id));await waitForPlaylist(join(dir,'index.m3u8'),child);return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){const job=jobs.get(id);job?.process.kill();jobs.delete(id);await rm(dir,{recursive:true,force:true});return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao iniciar a reprodução'});}
  });
  app.get('/api/media/playback/:id/:file',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;

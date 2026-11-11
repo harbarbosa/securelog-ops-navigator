@@ -197,7 +197,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
     <CameraFrame camera={camera} time={data} offline={state !== "video"} />
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>
     <Button onClick={() => void buscar()} disabled={state === "consultando" || !cameraId}><Video className="h-4 w-4" />Buscar e reproduzir gravação</Button>
-    <Dialog open={popup} onOpenChange={setPopup}><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>{camera} — gravação do período selecionado</DialogTitle></DialogHeader><video ref={videoRef} controls autoPlay className="aspect-video w-full rounded-md bg-black" /></DialogContent></Dialog>
+    <Dialog open={popup} onOpenChange={setPopup}><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>{camera} — gravação do período selecionado</DialogTitle></DialogHeader><video ref={videoRef} controls autoPlay muted playsInline className="aspect-video w-full rounded-md bg-black" /></DialogContent></Dialog>
   </div>;
 }
 

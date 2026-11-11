@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, EmptyState, MediaPanel, PageHeader, StatusBadge, Table, Td, Th, meta } from "@/components/sl/ui";
 import { api, type Page } from "@/lib/securelog-api";
 import { fmt } from "@/lib/format";
+import { z } from "zod";
 
 type Reading = {
   id: string;
@@ -21,12 +22,14 @@ type Reading = {
 };
 
 export const Route = createFileRoute("/admin/pesquisar")({
+  validateSearch: z.object({ code: z.string().optional() }),
   head: () => meta("Pesquisar código", "Pesquisa real de leituras registradas no SecureLog."),
   component: Pesquisar,
 });
 
 function Pesquisar() {
-  const [q, setQ] = useState("");
+  const { code: initialCode } = Route.useSearch();
+  const [q, setQ] = useState(initialCode ?? "");
   const [loading, setLoading] = useState(false);
   const [res, setRes] = useState<Reading[] | null>(null);
   const [recentes, setRecentes] = useState<string[]>([]);
@@ -47,6 +50,10 @@ function Pesquisar() {
       .catch(() => setRes([]))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    if (initialCode?.trim()) buscar(initialCode);
+  }, [initialCode]);
 
   return (
     <>

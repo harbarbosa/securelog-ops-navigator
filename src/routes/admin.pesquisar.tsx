@@ -100,7 +100,7 @@ function Pesquisar() {
                 <div><p className="text-xs text-muted-foreground">Gravador</p><p className="font-medium">{selected.recorder_name ?? "Não informado"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge status="sincronizado" /></div>
               </div>
-              <MediaPanel camera={selected.camera_name ?? "Câmera não vinculada"} gravador={selected.recorder_name ?? "Gravador não informado"} cameraId={selected.camera_id} data={new Date(selected.occurred_at)} />
+              <MediaPanel key={selected.id} camera={selected.camera_name ?? "Câmera não vinculada"} gravador={selected.recorder_name ?? "Gravador não informado"} cameraId={selected.camera_id} data={new Date(selected.occurred_at)} />
             </div>
           )}
         </DialogContent>

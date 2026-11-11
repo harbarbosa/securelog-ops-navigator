@@ -27,11 +27,12 @@ async function readPlaybackFile(path:string){
  return null;
 }
 async function waitForPlaylist(path:string,child:ReturnType<typeof spawn>){
+ let stderr='';child.stderr?.on('data',(chunk:Buffer)=>{stderr+=chunk.toString();});
  const deadline=Date.now()+20000;
  while(Date.now()<deadline){
   try{await access(path);return;}catch{if(child.exitCode!==null)break;await delay(250);}
  }
- throw new Error('FFmpeg não gerou a playlist de reprodução');
+ throw new Error(stderr.trim()||'FFmpeg não gerou a playlist de reprodução');
 }
 
 function parseDigest(header:string){
@@ -60,6 +61,12 @@ function nvrTime(value:string){
  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 function rtspTime(value:string){return nvrTime(value).replace(' ','_').replace(/:/g,'_');}
+function playbackOffset(file:MediaFile,start:string){
+ const toWallMs=(value:string)=>Date.parse(value.replace(' ','T').replace(/Z$/,'')+'Z');
+ const offset=(toWallMs(nvrTime(start))-toWallMs(file.start_time))/1000;
+ const length=(toWallMs(file.end_time)-toWallMs(file.start_time))/1000;
+ return offset>=0&&offset<length?offset:0;
+}
 function parseMediaFiles(body:string):MediaFile[]{
  const lines=body.split(/\r?\n/);const found=Number(lines.find(x=>x.startsWith('found='))?.split('=')[1]??0);if(!found)return [];
  const files=new Map<number,Record<string,string>>();
@@ -82,14 +89,14 @@ async function searchRecorder(r:Recorder,channel:number,start:string,end:string)
  }
 }
 function requireFfmpeg(){return process.env.FFMPEG_PATH??'ffmpeg';}
-async function spawnPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,filePath?:string){
+async function spawnPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,filePath?:string,offsetSeconds=0,durationSeconds=30){
  if(!r.username||!r.password_ciphertext) throw new Error('Credenciais do gravador não configuradas');
  const password=decryptSecret(r.password_ciphertext);const streamPath=filePath?filePath:`/cam/playback?channel=${channel}&starttime=${rtspTime(start)}&endtime=${rtspTime(end)}`;const rtsp=`rtsp://${encodeURIComponent(r.username)}:${encodeURIComponent(password)}@${r.host}:${r.rtsp_port}${streamPath}`;
  const output=join(dir,'index.m3u8');
  let input='';let response:Response|undefined;
  if(filePath){response=await digestGet(`${recorderBase(r)}/cgi-bin/RPC_Loadfile${filePath}`,r.username,password,120000);if(!response.ok||!response.body)throw new Error(`NVR recusou o arquivo de gravação (${response.status})`);input='pipe:0';}
  else input=rtsp;
- const args=['-hide_banner','-loglevel','error',...(filePath?[]:['-rtsp_transport','tcp']),'-i',input,'-map','0:v:0','-an','-c:v','libx264','-preset','veryfast','-f','hls','-hls_time','2','-hls_list_size','0','-hls_flags','independent_segments',output];
+ const args=['-hide_banner','-loglevel','error',...(filePath?[]:['-rtsp_transport','tcp']),'-i',input,'-ss',String(offsetSeconds),'-t',String(durationSeconds),'-map','0:v:0','-an','-c:v','libx264','-preset','veryfast','-f','hls','-hls_time','2','-hls_list_size','0','-hls_flags','independent_segments',output];
  const child=spawn(requireFfmpeg(),args,{windowsHide:true});
  if(response?.body){const inputStream=Readable.fromWeb(response.body as never);inputStream.on('error',()=>{if(!child.killed)child.kill();});child.stdin?.on('error',()=>undefined);inputStream.pipe(child.stdin!);}
  child.on('close',()=>{setTimeout(()=>{void rm(dir,{recursive:true,force:true});},10*60*1000);});
@@ -130,7 +137,7 @@ export async function registerMedia(app:FastifyInstance){
   try{files=await searchRecorder(recorder,recorder.channel,q.start,q.end);}catch(error){return reply.code(502).send({error:error instanceof Error?error.message:'Falha de comunicação com o gravador'});}
   if(!files.length)return reply.code(404).send({error:'Nenhuma gravação encontrada no período'});
   const id=randomUUID();const dir=join(tmpdir(),'securelog-media',id);await mkdir(dir,{recursive:true});
-  try{const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path);jobs.set(id,{dir,process:child,created:Date.now(),recorder,filePath:files[0].file_path});child.on('error',()=>jobs.delete(id));await waitForPlaylist(join(dir,'index.m3u8'),child);return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){const job=jobs.get(id);job?.process.kill();jobs.delete(id);await rm(dir,{recursive:true,force:true});return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao iniciar a reprodução'});}
+  try{const duration=Math.min(30,Math.max(1,(new Date(q.end).getTime()-new Date(q.start).getTime())/1000));const child=await spawnPlayback(recorder,recorder.channel,q.start,q.end,dir,files[0].file_path,playbackOffset(files[0],q.start),duration);jobs.set(id,{dir,process:child,created:Date.now(),recorder,filePath:files[0].file_path});child.on('error',()=>jobs.delete(id));await waitForPlaylist(join(dir,'index.m3u8'),child);return reply.code(202).send({id,playlist:`/api/media/playback/${id}/index.m3u8`,recording:files[0]});}catch(error){const job=jobs.get(id);job?.process.kill();jobs.delete(id);await rm(dir,{recursive:true,force:true});return reply.code(502).send({error:error instanceof Error?error.message:'Falha ao iniciar a reprodução'});}
  });
  app.get('/api/media/download/:id.avi',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user)return;

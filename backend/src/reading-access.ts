@@ -17,7 +17,7 @@ export async function registerReadingSearch(app:FastifyInstance){
   const filter=where.length?'WHERE '+where.join(' AND '):'';
   const count=await pool.query(`SELECT count(*)::int AS total FROM readings r ${filter}`,params);
   params.push(q.limit,q.offset);
-  const {rows}=await pool.query(`SELECT r.id,r.code,r.occurred_at,r.received_at,r.device_id,r.location_id,r.camera_id,l.name AS location_name,c.name AS camera_name,c.channel AS camera_channel,c.recorder_id,g.name AS recorder_name FROM readings r JOIN locations l ON l.id=r.location_id LEFT JOIN cameras c ON c.id=r.camera_id LEFT JOIN recorders g ON g.id=c.recorder_id ${filter} ORDER BY r.occurred_at DESC,r.id DESC LIMIT $${params.length-1} OFFSET $${params.length}`,params);
+  const {rows}=await pool.query(`SELECT r.id,r.code,r.occurred_at,r.received_at,r.device_id,d.name AS device_name,r.location_id,r.camera_id,l.name AS location_name,c.name AS camera_name,c.channel AS camera_channel,c.recorder_id,g.name AS recorder_name FROM readings r JOIN locations l ON l.id=r.location_id LEFT JOIN devices d ON d.id=r.device_id LEFT JOIN cameras c ON c.id=r.camera_id LEFT JOIN recorders g ON g.id=c.recorder_id ${filter} ORDER BY r.occurred_at DESC,r.id DESC LIMIT $${params.length-1} OFFSET $${params.length}`,params);
   return {items:rows,total:count.rows[0].total,limit:q.limit,offset:q.offset};
  });
 }

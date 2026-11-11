@@ -141,7 +141,7 @@ export function Confirm({ open, onOpenChange, title, description, confirmLabel =
   );
 }
 
-export function CameraFrame({ camera, time, offline, children, className }: { camera: string; time: Date; offline?: boolean; children?: ReactNode; className?: string }) {
+export function CameraFrame({ camera, time, offline, children, className, showOverlay = true }: { camera: string; time: Date; offline?: boolean; children?: ReactNode; className?: string; showOverlay?: boolean }) {
   return (
     <div className={cn("relative aspect-video overflow-hidden rounded-md bg-media text-media-foreground", className)}>
       {offline ? (
@@ -149,8 +149,7 @@ export function CameraFrame({ camera, time, offline, children, className }: { ca
       ) : (
         <div className="grid h-full place-items-center text-center text-sm"><div><ImageOff className="mx-auto mb-2 h-8 w-8 opacity-60" />Nenhuma mídia real disponível</div></div>
       )}
-      <div className="absolute left-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{camera}</div>
-      <div className="absolute right-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{fmt(time)}</div>
+      {showOverlay && <><div className="absolute left-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{camera}</div><div className="absolute right-2 top-2 z-10 rounded bg-media/80 px-1.5 py-0.5 font-mono text-[11px]">{fmt(time)}</div></>}
       {children}
     </div>
   );
@@ -231,7 +230,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const label: Record<MediaState, ReactNode> = { idle: <StatusBadge status="inativo" label="Aguardando consulta" />, consultando: <StatusBadge status="sincronizando" label="Consultando gravador" />, carregando: <StatusBadge status="sincronizando" label="Carregando vídeo" />, video: <StatusBadge status="online" label="Gravação disponível" />, "sem-video": <StatusBadge status="pendente" label="Nenhuma gravação encontrada" />, falha: <StatusBadge status="erro" label="Falha na consulta" /> };
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">{label[state]}<span className="text-xs text-muted-foreground">{gravador}</span></div>
-    <CameraFrame camera={camera} time={data} offline={!videoReady} className="max-h-[360px]">
+    <CameraFrame camera={camera} time={data} offline={!videoReady} showOverlay={false} className="max-h-[360px]">
       {playlist && <><video ref={videoRef} crossOrigin="use-credentials" controls muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" /><Button type="button" variant="secondary" size="icon" aria-label="Tela cheia" title="Tela cheia" onClick={fullscreen} disabled={!videoReady} className="absolute right-2 top-2 z-[2] bg-black/70 text-white hover:bg-black/90"><Maximize2 className="h-4 w-4" /></Button>{!videoReady && <div className="absolute inset-0 z-[3] grid place-items-center bg-black/65 text-white"><div className="text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" /><p className="text-sm">Carregando vídeo…</p><p className="mt-1 text-xs text-white/70">A reprodução começará quando estiver pronta</p></div></div>}</>}
     </CameraFrame>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" step="1" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" step="1" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>

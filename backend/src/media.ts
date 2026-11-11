@@ -80,11 +80,10 @@ async function searchRecorder(r:Recorder,channel:number,start:string,end:string)
   const factory=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?action=factory.create`,r.username,password);const factoryText=await factory.text();
   object=factoryText.match(/(?:result|object)=([^\r\n]+)/i)?.[1]?.trim()??factoryText.trim();
   if(!object)throw new Error('O NVR não criou a pesquisa de gravações');
-  const params=new URLSearchParams({action:'findFile',object});params.set('condition.Channel',String(channel));params.set('condition.StartTime',nvrTime(start));params.set('condition.EndTime',nvrTime(end));params.set('condition.Types[0]','dav');params.set('condition.VideoStream','Main');
+  const params=new URLSearchParams({action:'findFile',object});params.set('condition.Channel',String(channel));params.set('condition.StartTime',nvrTime(start));params.set('condition.EndTime',nvrTime(end));params.set('condition.Types[0]','dav');
   const find=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${params}`,r.username,password);if(!find.ok)throw new Error(`NVR recusou a pesquisa (${find.status})`);
   const nextParams=new URLSearchParams({action:'findNextFile',object,count:'100'});const next=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${nextParams}`,r.username,password);if(!next.ok)throw new Error(`NVR recusou os resultados (${next.status})`);
-  const requestedStart=wallTimeMs(nvrTime(start));const requestedEnd=wallTimeMs(nvrTime(end));
-  return parseMediaFiles(await next.text()).filter(file=>wallTimeMs(file.end_time)>=requestedStart&&wallTimeMs(file.start_time)<=requestedEnd);
+  return parseMediaFiles(await next.text());
  } finally {
   if(object&&r.username&&r.password_ciphertext){const password=decryptSecret(r.password_ciphertext);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=close&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=destroy&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);}
  }

@@ -166,6 +166,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Conectando ao DVR…");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -201,13 +202,16 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   const buscar = async () => {
     if (!cameraId) { toast.error("A leitura não possui câmera associada"); return; }
     setState("consultando");
+    setLoadingMessage("Conectando ao DVR…");
     setPlaylist(null); setDownloadUrl(null); setVideoReady(false);
     try {
+      setLoadingMessage("Pesquisando gravação no DVR…");
       const query = `camera_id=${encodeURIComponent(cameraId)}&start=${encodeURIComponent(new Date(ini).toISOString())}&end=${encodeURIComponent(new Date(fim).toISOString())}`;
       const found = await api<{ items: MediaFile[] }>(`/api/media/search?${query}`);
       if (!found.items.length) { setState("sem-video"); toast.info("Nenhuma gravação encontrada no período"); return; }
+      setLoadingMessage("Gravação encontrada. Preparando vídeo…");
       const job = await api<{ id: string; playlist: string }>("/api/media/playback", { method: "POST", body: JSON.stringify({ camera_id: cameraId, start: new Date(ini).toISOString(), end: new Date(fim).toISOString() }) });
-      setPlaylist(`${securelogApiBase}${job.playlist}`); setDownloadUrl(`${securelogApiBase}/api/media/download/${job.id}.avi`); setState("carregando");
+      setLoadingMessage("Carregando vídeo…"); setPlaylist(`${securelogApiBase}${job.playlist}`); setDownloadUrl(`${securelogApiBase}/api/media/download/${job.id}.avi`); setState("carregando");
     } catch (error) { setState("falha"); toast.error(error instanceof Error ? error.message : "Falha ao consultar o gravador"); }
   };
   const downloadVideo = async () => {
@@ -231,7 +235,7 @@ export function MediaPanel({ camera, gravador, cameraId, data }: { camera: strin
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">{label[state]}<span className="text-xs text-muted-foreground">{gravador}</span></div>
     <CameraFrame camera={camera} time={data} offline={!videoReady} showOverlay={false} className="max-h-[360px]">
-      {(state === "consultando" || state === "carregando") && <div className="absolute inset-0 z-[4] grid place-items-center bg-black/65 text-white"><div className="text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" /><p className="text-sm">{state === "consultando" ? "Consultando gravação…" : "Carregando vídeo…"}</p><p className="mt-1 text-xs text-white/70">A reprodução começará quando estiver pronta</p></div></div>}
+      {(state === "consultando" || state === "carregando") && <div className="absolute inset-0 z-[4] grid place-items-center bg-black/65 text-white"><div className="text-center"><Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" /><p className="text-sm">{loadingMessage}</p><p className="mt-1 text-xs text-white/70">A reprodução começará quando estiver pronta</p></div></div>}
       {playlist && <><video ref={videoRef} crossOrigin="use-credentials" controls muted playsInline className="absolute inset-0 z-[1] h-full w-full bg-black object-contain" /><Button type="button" variant="secondary" size="icon" aria-label="Tela cheia" title="Tela cheia" onClick={fullscreen} disabled={!videoReady} className="absolute right-2 top-2 z-[2] bg-black/70 text-white hover:bg-black/90"><Maximize2 className="h-4 w-4" /></Button></>}
     </CameraFrame>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Data/hora inicial"><Input type="datetime-local" step="1" value={ini} onChange={(e) => setIni(e.target.value)} /></Field><Field label="Data/hora final"><Input type="datetime-local" step="1" value={fim} onChange={(e) => setFim(e.target.value)} /></Field></div>

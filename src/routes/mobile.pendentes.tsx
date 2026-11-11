@@ -13,12 +13,9 @@ export const Route = createFileRoute("/mobile/pendentes")({
 
 function MPend() {
   const m = useMobile();
-  const sync = () => {
-    if (!m.online) { toast.error("Sem conexão", { description: "Conecte-se à rede para sincronizar." }); return; }
-    toast.info("Sincronização real depende do token provisionado no dispositivo Zebra.");
-  };
+  const sync = () => { if (!m.online) { toast.error("Sem conexão", { description: "Conecte-se à rede para sincronizar." }); return; } void m.sync(); };
   const banner = !m.online ? { i: <WifiOff className="h-5 w-5" />, t: "Sem conexão — leituras ficam salvas no aparelho", c: "bg-danger-soft text-destructive" }
-    : m.pend.length === 0 ? { i: <CheckCircle2 className="h-5 w-5" />, t: "Nenhuma leitura pendente", c: "bg-success-soft text-success" } : { i: <RefreshCw className="h-5 w-5" />, t: "Sincronização do dispositivo ainda não configurada", c: "bg-brand-soft text-brand" };
+    : m.pend.length === 0 ? { i: <CheckCircle2 className="h-5 w-5" />, t: "Nenhuma leitura pendente", c: "bg-success-soft text-success" } : { i: <RefreshCw className="h-5 w-5" />, t: "Leituras aguardando sincronização", c: "bg-brand-soft text-brand" };
   return (
     <div className="space-y-4 p-4">
       <div className="card-surface flex items-center justify-between p-4">

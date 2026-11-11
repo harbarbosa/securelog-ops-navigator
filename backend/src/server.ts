@@ -9,6 +9,7 @@ import {pool,dbHealth} from './db.js';
 import {createSession,hashToken,requireUser,requireRole} from './auth.js';
 import {registerCrud} from './crud.js';
 import {registerDeviceReadings} from './device-readings.js';
+import {registerDeviceProvision} from './device-provision.js';
 import {registerReadingSearch} from './reading-access.js';
 import {registerMedia} from './media.js';
 const app=Fastify({logger:true,bodyLimit:1024*1024});
@@ -82,6 +83,7 @@ app.get('/api/:entity',async(req,reply)=>{
 // Search is restricted by user location assignments.
 await registerCrud(app);
 await registerDeviceReadings(app);
+await registerDeviceProvision(app);
 await registerReadingSearch(app);
 await registerMedia(app);
 const port=Number(process.env.PORT??3333);

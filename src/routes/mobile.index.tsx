@@ -23,7 +23,7 @@ function MLogin() {
     if (!m.user || !pass) return setErr("Informe usuário e senha.");
     if (!m.online) return setErr("Sem conexão. O primeiro acesso do turno precisa de rede.");
     setLoading(true);
-    try { const response=await securelog.login(m.user,pass); m.setUser(response.user.username); nav({ to: "/mobile/local" }); }
+    try { const response=await securelog.login(m.user,pass); m.setUser(response.user.username); m.setRole(response.user.role); nav({ to: response.user.role === "admin" ? "/mobile/config" : "/mobile/local" }); }
     catch(error){setErr(error instanceof Error?error.message:"Usuário ou senha inválidos.");}
     finally { setLoading(false); }
   };

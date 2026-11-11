@@ -24,5 +24,6 @@ export const securelog={
  create:(entity:Exclude<EntityName,'users'>,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}`,{method:'POST',body:JSON.stringify(body)}),
  update:(entity:Exclude<EntityName,'users'>,id:string,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(body)}),
  delete:(entity:Exclude<EntityName,'users'>,id:string)=>api<{id:string;deleted:true}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'DELETE'}),
+ provisionDeviceToken:(id:string)=>api<{device_id:string;token:string}>(`/api/manage/devices/${encodeURIComponent(id)}/token`,{method:'POST'}),
  readings:(code?:string,limit=25,offset=0)=>api<Page<Record<string,unknown>>>(`/api/readings?limit=${limit}&offset=${offset}${code?'&code='+encodeURIComponent(code):''}`)
 };

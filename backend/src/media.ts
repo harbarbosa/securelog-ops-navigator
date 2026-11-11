@@ -15,6 +15,7 @@ import {decryptSecret} from './secret.js';
 type Recorder={id:string;host:string;port:number;rtsp_port:number;protocol:string;username:string|null;password_ciphertext:string|null};
 type MediaFile={channel:number;start_time:string;end_time:string;file_path:string;length?:number;type?:string};
 type PlaybackJob={dir:string;process:ReturnType<typeof spawn>;created:number;recorder:Recorder;filePath:string};
+type RpcResponse={result?:boolean;error?:{code?:number;message?:string};params?:any;session?:string};
 const jobs=new Map<string,PlaybackJob>();
 const delay=(ms:number)=>new Promise<void>((resolve)=>setTimeout(resolve,ms));
 async function readPlaybackFile(path:string){
@@ -73,20 +74,44 @@ function parseMediaFiles(body:string):MediaFile[]{
  for(const line of lines){const m=line.match(/^items\[(\d+)\]\.([^=]+)=(.*)$/);if(m)(files.get(Number(m[1]))??(files.set(Number(m[1]),{}),files.get(Number(m[1]))!))[m[2]]=m[3];}
  return [...files.values()].map(x=>({channel:Number(x.Channel),start_time:x.StartTime,end_time:x.EndTime,file_path:x.FilePath,length:x.Length?Number(x.Length):undefined,type:x.Type})).filter(x=>x.file_path);
 }
-async function searchRecorder(r:Recorder,channel:number,start:string,end:string){
- if(!r.username||!r.password_ciphertext) throw new Error('Credenciais do gravador não configuradas');
- const password=decryptSecret(r.password_ciphertext);const base=recorderBase(r);let object='';
+function md5(value:string){return createHash('md5').update(value).digest('hex');}
+async function rpcPost(base:string,path:string,body:Record<string,unknown>,timeoutMs=10000,allowResultFalse=false):Promise<RpcResponse>{
+ const response=await fetch(`${base}${path}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
+ const text=await response.text();let data:RpcResponse;
+ try{data=JSON.parse(text) as RpcResponse;}catch{throw new Error(`Resposta RPC inválida do NVR (${response.status})`);}
+ if(!response.ok||(!allowResultFalse&&data.result===false))throw new Error(data.error?.message||`NVR recusou a operação RPC (${response.status})`);
+ return data;
+}
+async function rpcLogin(base:string,username:string,password:string){
+ const first=await rpcPost(base,'/RPC2_Login',{method:'global.login',params:{userName:username,password:'',clientType:'Web3.0',loginType:'Direct'},id:1},10000,true);
+ const firstParams=first.params??{};const encryption=String(firstParams.encryption??'Default');
+ const hashed=encryption==='Default'?md5(`${username}:${firstParams.realm}:${password}`):password;
+ if(!first.session)throw new Error('O NVR não retornou uma sessão RPC');
+ const second=await rpcPost(base,'/RPC2_Login',{method:'global.login',params:{userName:username,password:hashed,clientType:'Web3.0',loginType:'Direct',authorityType:encryption,passwordType:encryption},id:2,session:first.session},10000);
+ const session=second.session??first.session;if(!session)throw new Error('O NVR não confirmou a sessão RPC');return session;
+}
+function normalizeRpcFiles(infos:unknown):MediaFile[]{
+ if(!Array.isArray(infos))return [];
+ return infos.map((x)=>{
+  const item=x as Record<string,unknown>;
+  return {channel:Number(item.Channel??item.channel),start_time:String(item.StartTime??item.start_time??''),end_time:String(item.EndTime??item.end_time??''),file_path:String(item.FilePath??item.file_path??''),length:item.Length===undefined?undefined:Number(item.Length),type:item.Type===undefined?undefined:String(item.Type)};
+ }).filter((x)=>x.file_path&&x.start_time&&x.end_time);
+}
+async function searchRecorderRpc(r:Recorder,channel:number,start:string,end:string){
+ if(!r.username||!r.password_ciphertext)throw new Error('Credenciais do gravador não configuradas');
+ const password=decryptSecret(r.password_ciphertext);const base=recorderBase(r);const session=await rpcLogin(base,r.username,password);let object:string|undefined;
  try{
-  const factory=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?action=factory.create`,r.username,password);const factoryText=await factory.text();
-  object=factoryText.match(/(?:result|object)=([^\r\n]+)/i)?.[1]?.trim()??factoryText.trim();
-  if(!object)throw new Error('O NVR não criou a pesquisa de gravações');
-  const params=new URLSearchParams({action:'findFile',object});params.set('condition.Channel',String(channel));params.set('condition.StartTime',nvrTime(start));params.set('condition.EndTime',nvrTime(end));params.set('condition.Types[0]','dav');
-  const find=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${params}`,r.username,password);if(!find.ok)throw new Error(`NVR recusou a pesquisa (${find.status})`);
-  const nextParams=new URLSearchParams({action:'findNextFile',object,count:'100'});const next=await digestGet(`${base}/cgi-bin/mediaFileFind.cgi?${nextParams}`,r.username,password);if(!next.ok)throw new Error(`NVR recusou os resultados (${next.status})`);
-  return parseMediaFiles(await next.text());
+  const factory=await rpcPost(base,'/RPC2',{method:'mediaFileFind.factory.create',params:null,id:3,session});object=String(factory.result??'');if(!object)throw new Error('O NVR não criou a pesquisa RPC de gravações');
+  await rpcPost(base,'/RPC2',{method:'mediaFileFind.findFile',params:{condition:{Channel:channel,StartTime:nvrTime(start),EndTime:nvrTime(end),VideoStream:'Main'}},id:4,session,object});
+  const next=await rpcPost(base,'/RPC2',{method:'mediaFileFind.findNextFile',params:{count:100},id:5,session,object});
+  return normalizeRpcFiles(next.params?.infos);
  } finally {
-  if(object&&r.username&&r.password_ciphertext){const password=decryptSecret(r.password_ciphertext);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=close&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);await digestGet(`${recorderBase(r)}/cgi-bin/mediaFileFind.cgi?action=destroy&object=${encodeURIComponent(object)}`,r.username,password).catch(()=>undefined);}
+  if(object){await rpcPost(base,'/RPC2',{method:'mediaFileFind.close',params:null,id:6,session,object}).catch(()=>undefined);await rpcPost(base,'/RPC2',{method:'mediaFileFind.destroy',params:null,id:7,session,object}).catch(()=>undefined);}
+  await rpcPost(base,'/RPC2',{method:'global.logout',params:null,id:8,session}).catch(()=>undefined);
  }
+}
+async function searchRecorder(r:Recorder,channel:number,start:string,end:string){
+ return searchRecorderRpc(r,channel,start,end);
 }
 function requireFfmpeg(){return process.env.FFMPEG_PATH??'ffmpeg';}
 async function spawnPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,filePath?:string,offsetSeconds=0,durationSeconds=30){

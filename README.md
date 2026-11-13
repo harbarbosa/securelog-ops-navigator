@@ -136,7 +136,7 @@ Criar uma área de alertas recentes:
 - Leituras pendentes.
 - Falha de sincronização.
 
-Usar dados mockados realistas.
+Usar dados retornados pelo backend e pelos equipamentos configurados.
 
 ## Tela 3 — Leituras
 
@@ -201,7 +201,7 @@ Criar uma tela ou painel lateral com:
 
 Área de mídia:
 
-- Placeholder para snapshot.
+- Estado de snapshot indisponível quando não houver mídia real.
 - Botão “Buscar imagem”.
 - Botão “Buscar vídeo”.
 - Campo de data/hora inicial.
@@ -506,15 +506,12 @@ Exibir:
 
 - Todos os menus devem funcionar.
 - Botões devem abrir telas, modais ou drawers.
-- Formulários devem aceitar dados mockados.
+- Formulários devem validar e persistir dados reais.
 - Criar toasts de sucesso e erro.
 - Criar modais de confirmação.
-- Usar dados fictícios realistas.
-- Não criar endpoints reais.
-- Não usar banco de dados.
-- Não implementar autenticação real.
-- Não implementar integração real com NVR.
-- Não implementar sincronização real.
+- Não exibir dados fictícios quando não houver registros reais.
+- Usar os endpoints e o banco de dados configurados.
+- Implementar autenticação, integração NVR e sincronização conforme o ambiente.
 - O objetivo é somente validar a experiência visual e o fluxo com o cliente.
 
 ## Resultado esperado

@@ -1,7 +1,7 @@
 import {createContext,useCallback,useContext,useEffect,useMemo,useState,type ReactNode} from "react";
 import {securelogApiBase} from "@/lib/securelog-api";
 
-export type Pend={id:string;codigo:string;data:Date;tentativas:number;status:"aguardando"|"enviando"|"erro"};
+export type Pend={id:string;codigo:string;data:Date;locationId:string;tentativas:number;status:"aguardando"|"enviando"|"erro"};
 export type MobileLog={id:string;at:Date;type:"info"|"success"|"error";message:string};
 export type MobileConfig={serverHost:string;serverPort:number;deviceId:string;deviceName:string;token:string};
 type Role="admin"|"supervisor"|"operator"|"viewer"|"";
@@ -22,7 +22,7 @@ export function MobileProvider({children}:{children:ReactNode}){
  const [online,setOnline]=useState(true);
  const [sessao,setSessao]=useState<S["sessao"]>([]);
  const [config,setConfig]=useState<MobileConfig>(()=>({...defaultConfig(),...readJson<Partial<MobileConfig>>(configKey,{})}));
- const [pend,setPend]=useState<Pend[]>(()=>readJson<Pend[]>(pendKey,[]).map(p=>({...p,data:new Date(p.data)})));
+ const [pend,setPend]=useState<Pend[]>(()=>readJson<Pend[]>(pendKey,[]).map(p=>({...p,data:new Date(p.data),locationId:p.locationId??""})));
  const [logs,setLogs]=useState<MobileLog[]>(()=>readJson<MobileLog[]>(logsKey,[]).slice(0,100).map(l=>({...l,at:new Date(l.at)})));
  const [ultimaSync,setUltimaSync]=useState(new Date(0));
  const addLog=useCallback((message:string,type:MobileLog["type"]="info")=>{const item={id:crypto.randomUUID(),at:new Date(),type,message};setLogs(prev=>{const next=[item,...prev].slice(0,100);localStorage.setItem(logsKey,JSON.stringify(next));return next;});},[]);
@@ -31,7 +31,7 @@ export function MobileProvider({children}:{children:ReactNode}){
  const setLeitor=useCallback((id:string)=>{setLeitorState(id);updateConfig({deviceId:id});},[updateConfig]);
  const sendOne=useCallback(async(p:Pend)=>{
   if(!config.token||!config.deviceId)throw new Error("Token ou coletor não configurado");
-  const response=await fetch(`${serverUrl(config)}/api/device/readings`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${config.token}`},body:JSON.stringify({device_event_id:p.id,code:p.codigo,occurred_at:p.data.toISOString()})});
+  const response=await fetch(`${serverUrl(config)}/api/device/readings`,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json",Authorization:`Bearer ${config.token}`},body:JSON.stringify({device_event_id:p.id,code:p.codigo,location_id:p.locationId,occurred_at:p.data.toISOString()})});
   if(!response.ok){const body=await response.json().catch(()=>null) as {error?:string}|null;throw new Error(body?.error??`Servidor retornou HTTP ${response.status}`);}
  },[config]);
  const sync=useCallback(async()=>{
@@ -44,7 +44,7 @@ export function MobileProvider({children}:{children:ReactNode}){
   }
  },[addLog,online,pend,savePend,sendOne]);
  const recordReading=useCallback(async(code:string)=>{
-  const item:Pend={id:crypto.randomUUID(),codigo:code.trim(),data:new Date(),tentativas:0,status:"aguardando"};
+  const item:Pend={id:crypto.randomUUID(),codigo:code.trim(),data:new Date(),locationId:local,tentativas:0,status:"aguardando"};
   setSessao(s=>[{codigo:item.codigo,data:item.data},...s]);
   if(!online||!config.token||!config.deviceId){savePend([item,...pend]);addLog(!online?"Sem conexão: leitura salva no cache local":"Coletor sem token: leitura salva no cache local", "error");return;}
   try{await sendOne(item);setUltimaSync(new Date());addLog(`Leitura ${item.codigo} enviada ao servidor`,"success");}

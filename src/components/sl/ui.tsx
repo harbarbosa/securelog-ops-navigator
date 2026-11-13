@@ -44,7 +44,7 @@ export function PageHeader({ title, crumbs, actions }: { title: string; crumbs?:
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         {crumbs && <p className="mb-1 text-xs text-muted-foreground">{["SecureLog", ...crumbs].join(" / ")}</p>}
-        <h1 className="text-2xl font-semibold tracking-tight text-primary">{title}</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-primary">{title}</h1>
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>

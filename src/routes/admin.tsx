@@ -25,6 +25,8 @@ const config = [
   { to: "/admin/monitoramento", label: "Monitoramento", icon: Activity },
   { to: "/admin/retencao", label: "Retenção de mídia", icon: Trash2 },
 ] as const;
+const operations = main.slice(0, 3);
+const registers = main.slice(3);
 
 function Nav({ onNav }: { onNav?: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -40,9 +42,12 @@ function Nav({ onNav }: { onNav?: () => void }) {
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center border-b border-sidebar-border px-5"><Logo light /></div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {main.map((i) => item(i))}
-        <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent">
-          <Settings className="h-4 w-4" />Configurações<ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", !open && "-rotate-90")} />
+        <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/50">Operação</p>
+        {operations.map((i) => item(i))}
+        <p className="px-3 pb-1 pt-5 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidebar-foreground/50">Cadastros</p>
+        {registers.map((i) => item(i))}
+        <button onClick={() => setOpen(!open)} className="mt-4 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent">
+          <Settings className="h-4 w-4" />Administração<ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", !open && "-rotate-90")} />
         </button>
         {open && config.map((i) => item(i, true))}
       </nav>
@@ -66,14 +71,15 @@ function AdminLayout() {
   }, [nav]);
   if (checking || !currentUser) return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Verificando acesso...</div>;
   return (
-    <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 lg:block"><Nav /></aside>
+      <div className="min-h-screen">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-52 lg:block"><Nav /></aside>
       <Sheet open={mob} onOpenChange={setMob}>
         <SheetContent side="left" className="w-64 border-0 p-0"><SheetTitle className="sr-only">Menu</SheetTitle><Nav onNav={() => setMob(false)} /></SheetContent>
       </Sheet>
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur lg:px-6">
+      <div className="lg:pl-52">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-card/95 px-4 backdrop-blur lg:px-6">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMob(true)} aria-label="Abrir menu"><Menu className="h-5 w-5" /></Button>
+          <div className="hidden sm:block"><p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Operação — Rastreabilidade</p><p className="text-sm font-semibold text-primary">Painel SecureLog</p></div>
           <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning">Homologação</span>
           <div className="ml-auto flex items-center gap-2">
             <Popover>

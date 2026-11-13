@@ -1,5 +1,6 @@
 import type {FastifyInstance} from 'fastify';
 import {z} from 'zod';
+import argon2 from 'argon2';
 import {pool} from './db.js';
 import {requireUser,requireRole} from './auth.js';
 import {encryptSecret} from './secret.js';
@@ -8,15 +9,20 @@ const schemas={
  locations:z.object({name:z.string().trim().min(1).max(160),description:z.string().max(2000).nullable().optional(),primary_camera_id:z.string().uuid().nullable().optional(),active:z.boolean().optional()}),
  recorders:z.object({name:z.string().trim().min(1).max(160),host:z.string().trim().min(1).max(255),port:z.number().int().min(1).max(65535),rtsp_port:z.number().int().min(1).max(65535).optional(),sdk_port:z.number().int().min(0).max(65535).optional(),protocol:z.string().trim().min(1).max(80),username:z.string().trim().max(160).nullable().optional(),password:z.string().min(1).max(500).optional(),active:z.boolean().optional()}),
  cameras:z.object({name:z.string().trim().min(1).max(160),recorder_id:z.string().uuid(),channel:z.number().int().min(0),active:z.boolean().optional()}),
- devices:z.object({name:z.string().trim().min(1).max(160),serial_number:z.string().trim().min(1).max(160),location_id:z.string().uuid().nullable().optional(),active:z.boolean().optional()})
+ devices:z.object({name:z.string().trim().min(1).max(160),serial_number:z.string().trim().min(1).max(160),location_id:z.string().uuid().nullable().optional(),active:z.boolean().optional()}),
+ users:z.object({name:z.string().trim().min(1).max(160),username:z.string().trim().min(1).max(160),email:z.string().trim().email().nullable().optional(),password:z.string().min(12).max(500),role:z.enum(['admin','supervisor','operator','viewer']),active:z.boolean().optional()})
 } as const;
 type Entity=keyof typeof schemas;
 const allowed=new Set<string>(Object.keys(schemas));
 function entityName(value:string):Entity|null{return allowed.has(value)?value as Entity:null;}
- function prepareValues(table:Entity,values:Record<string,unknown>){
+ async function prepareValues(table:Entity,values:Record<string,unknown>){
   const prepared={...values};
   if(table==='recorders'){
    if(typeof prepared.password==='string'&&prepared.password.length>0) prepared.password_ciphertext=encryptSecret(prepared.password);
+   delete prepared.password;
+  }
+  if(table==='users'&&typeof prepared.password==='string'){
+   prepared.password_hash=await argon2.hash(prepared.password,{type:argon2.argon2id});
    delete prepared.password;
   }
   return prepared;
@@ -27,7 +33,8 @@ export async function registerCrud(app:FastifyInstance){
   const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin','supervisor'],reply))return;
   const {entity}=z.object({entity:z.string()}).parse(req.params);
   const table=entityName(entity);if(!table)return reply.code(404).send({error:'Recurso não encontrado'});
-  const values=prepareValues(table,schemas[table].parse(req.body) as Record<string,unknown>);
+  if(table==='users'&&!requireRole(user,['admin'],reply))return;
+  const values=await prepareValues(table,schemas[table].parse(req.body) as Record<string,unknown>);
   const keys=Object.keys(values);
   const result=await pool.query(`INSERT INTO "${table}" (${keys.map(k=>'"'+k+'"').join(',')}) VALUES (${keys.map((_,i)=>'$'+(i+1)).join(',')}) RETURNING id`,keys.map(k=>values[k]));
   await pool.query('INSERT INTO audit_events(actor_user_id,action,entity_type,entity_id) VALUES($1,$2,$3,$4)',[user.id,'create',table,result.rows[0].id]);
@@ -37,7 +44,8 @@ export async function registerCrud(app:FastifyInstance){
   const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin','supervisor'],reply))return;
   const {entity,id}=z.object({entity:z.string(),id:uuid}).parse(req.params);
   const table=entityName(entity);if(!table)return reply.code(404).send({error:'Recurso não encontrado'});
-  const values=prepareValues(table,(schemas[table] as z.ZodObject<z.ZodRawShape>).partial().refine((v:Record<string,unknown>)=>Object.keys(v).length>0,'Informe pelo menos um campo').parse(req.body) as Record<string,unknown>);
+  if(table==='users'&&!requireRole(user,['admin'],reply))return;
+  const values=await prepareValues(table,(schemas[table] as z.ZodObject<z.ZodRawShape>).partial().refine((v:Record<string,unknown>)=>Object.keys(v).length>0,'Informe pelo menos um campo').parse(req.body) as Record<string,unknown>);
   const keys=Object.keys(values);
   const result=await pool.query(`UPDATE "${table}" SET ${keys.map((k,i)=>'"'+k+'"=$'+(i+1)).join(',')} WHERE id=$${keys.length+1} RETURNING id`,[...keys.map(k=>values[k]),id]);
   if(!result.rowCount)return reply.code(404).send({error:'Registro não encontrado'});

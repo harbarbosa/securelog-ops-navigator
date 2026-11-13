@@ -21,9 +21,9 @@ export const securelog={
  me:()=>api<{user:SecureLogUser}>('/api/auth/me'),
  logout:()=>api<{ok:boolean}>('/api/auth/logout',{method:'POST'}),
  list:<T>(entity:EntityName,limit=25,offset=0)=>api<Page<T>>(`/api/${entity}?limit=${limit}&offset=${offset}`),
- create:(entity:Exclude<EntityName,'users'>,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}`,{method:'POST',body:JSON.stringify(body)}),
- update:(entity:Exclude<EntityName,'users'>,id:string,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(body)}),
- delete:(entity:Exclude<EntityName,'users'>,id:string)=>api<{id:string;deleted:true}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'DELETE'}),
+  create:(entity:EntityName,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}`,{method:'POST',body:JSON.stringify(body)}),
+  update:(entity:EntityName,id:string,body:Record<string,unknown>)=>api<{id:string}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(body)}),
+  delete:(entity:EntityName,id:string)=>api<{id:string;deleted:true}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'DELETE'}),
  provisionDeviceToken:(id:string)=>api<{device_id:string;token:string}>(`/api/manage/devices/${encodeURIComponent(id)}/token`,{method:'POST'}),
  readings:(code?:string,limit=25,offset=0)=>api<Page<Record<string,unknown>>>(`/api/readings?limit=${limit}&offset=${offset}${code?'&code='+encodeURIComponent(code):''}`)
 };

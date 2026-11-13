@@ -11,16 +11,23 @@ O sistema terá duas interfaces:
 
 ## Gerar APK para os coletores
 
-O aplicativo Android é empacotado a partir da mesma interface mobile do SecureLog. O APK precisa apontar para um endereço que seja acessível pelo coletor na rede; `127.0.0.1` dentro do APK representa o próprio coletor, não o computador que executa o servidor.
+O aplicativo Android possui um pacote mobile próprio, com as telas do coletor embutidas no APK. Ele não depende do frontend web para abrir. O servidor é acessado somente pelas APIs configuradas no aplicativo.
 
 No PowerShell, na raiz do projeto:
 
 ```powershell
-$env:CAPACITOR_SERVER_URL="http://ENDERECO_DO_SERVIDOR:8080"
 npm run apk:debug
 ```
 
-O arquivo gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. Para teste local na mesma máquina, pode ser usado `http://127.0.0.1:8080`; para instalar nos coletores, use o IP ou nome DNS do servidor e confirme que a porta do frontend está liberada na rede.
+O comando acima continua aceitando `CAPACITOR_SERVER_URL` apenas para compatibilidade com testes antigos; para o APK independente, deixe essa variável vazia. O endereço da API é configurado dentro do aplicativo pelo administrador.
+
+O APK independente é gerado com:
+
+```powershell
+npm run apk:debug
+```
+
+O arquivo gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. O login online grava uma credencial local protegida por hash. Locais e dispositivos consultados online ficam disponíveis no banco local do aplicativo, e as leituras feitas sem conexão ficam em uma fila local para sincronização posterior.
 
 Esse APK de debug é adequado para homologação. Para distribuição oficial, ainda será necessário criar uma chave de assinatura Android e configurar uma variante de release.
 

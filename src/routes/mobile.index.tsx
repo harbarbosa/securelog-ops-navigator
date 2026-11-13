@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, Logo, meta } from "@/components/sl/ui";
 import { useMobile } from "@/components/sl/mobile-state";
-import { securelog } from "@/lib/securelog-api";
+import { securelog, setSecurelogApiBase } from "@/lib/securelog-api";
+import { cacheUser, getCachedUser } from "@/lib/mobile-db";
 
 export const Route = createFileRoute("/mobile/")({
   head: () => meta("Coletor — Entrar", "Login do operador no aplicativo SecureLog para coletor Zebra."),
@@ -16,21 +17,41 @@ function MLogin() {
   const m = useMobile();
   const nav = useNavigate();
   const [pass, setPass] = useState("");
+  const [host, setHost] = useState(m.config.serverHost);
+  const [port, setPort] = useState(String(m.config.serverPort));
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     if (!m.user || !pass) return setErr("Informe usuário e senha.");
-    if (!m.online) return setErr("Sem conexão. O primeiro acesso do turno precisa de rede.");
+    const serverPort=Number(port);
+    if(!host.trim()||!Number.isInteger(serverPort)||serverPort<1||serverPort>65535)return setErr("Informe o endereço e a porta da API.");
+    m.updateConfig({serverHost:host.trim(),serverPort});
+    setSecurelogApiBase(`http://${host.trim()}:${serverPort}`);
+    if (!m.online || navigator.onLine === false) {
+      const cached=await getCachedUser(m.user,pass).catch(()=>null);
+      if(cached){m.setUser(cached.username);m.setRole(cached.role);nav({to:cached.role==="admin"?"/mobile/config":"/mobile/local"});}
+      else setErr("Sem conexão e não há credenciais salvas para este usuário.");
+      return;
+    }
     setLoading(true);
-    try { const response=await securelog.login(m.user,pass); m.setUser(response.user.username); m.setRole(response.user.role); nav({ to: response.user.role === "admin" ? "/mobile/config" : "/mobile/local" }); }
-    catch(error){setErr(error instanceof Error?error.message:"Usuário ou senha inválidos.");}
+    try {
+      const response=await securelog.login(m.user,pass);
+      await cacheUser(m.user,pass,response.user);
+      m.setUser(response.user.username); m.setRole(response.user.role);
+      nav({ to: response.user.role === "admin" ? "/mobile/config" : "/mobile/local" });
+    } catch(error){
+      const cached=await getCachedUser(m.user,pass).catch(()=>null);
+      if(cached){m.setUser(cached.username);m.setRole(cached.role);m.setOnline(false);nav({to:cached.role==="admin"?"/mobile/config":"/mobile/local"});}
+      else setErr(error instanceof Error?`${error.message} Não há credenciais salvas para acesso offline.`:"Usuário ou senha inválidos.");
+    }
     finally { setLoading(false); }
   };
   return (
     <div className="flex min-h-full flex-col justify-center p-6">
       <div className="mb-8 flex justify-center"><Logo size="lg" /></div>
       <form onSubmit={go} className="space-y-4">
+        <div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Servidor da API"><Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.0.10" /></Field><Field label="Porta"><Input type="number" value={port} onChange={(e) => setPort(e.target.value)} placeholder="3333" /></Field></div>
         <Field label="Usuário"><Input className="h-14 text-lg" value={m.user} onChange={(e) => m.setUser(e.target.value)} /></Field>
         <Field label="Senha"><Input className="h-14 text-lg" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••" /></Field>
         {err && <div className="flex gap-2 rounded-md bg-danger-soft p-3 text-sm text-destructive"><AlertCircle className="h-4 w-4 shrink-0" />{err}</div>}

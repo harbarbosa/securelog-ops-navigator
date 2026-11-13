@@ -15,6 +15,7 @@ dist-ssr
 .capacitor
 android/app/build/
 android/.gradle/
+capacitor-web/*
 .vinxi
 .tanstack/**
 .nitro

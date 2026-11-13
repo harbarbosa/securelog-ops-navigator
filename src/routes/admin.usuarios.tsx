@@ -37,7 +37,7 @@ function Usuarios() {
     setSaving(true);
     try {
       const body: Record<string, unknown> = { name: edit.name.trim(), username: edit.username.trim(), email: edit.email.trim() || null, role: edit.role, active: edit.active };
-      if (edit.password) body.password = edit.password;
+      if (edit.password) body["password"] = edit.password;
       if (edit.id) await securelog.update("users", edit.id, body);
       else await securelog.create("users", { ...body, password: edit.password });
       toast.success(edit.id ? "Usuário atualizado" : "Usuário criado");

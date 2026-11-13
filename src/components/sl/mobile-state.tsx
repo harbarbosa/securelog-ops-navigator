@@ -1,5 +1,6 @@
 import {createContext,useCallback,useContext,useEffect,useMemo,useState,type ReactNode} from "react";
-import {securelogApiBase} from "@/lib/securelog-api";
+import {securelogApiBase,setSecurelogApiBase} from "@/lib/securelog-api";
+import {getPendingRecords,savePendingRecords,type PendingRecord} from "@/lib/mobile-db";
 
 export type Pend={id:string;codigo:string;data:Date;locationId:string;tentativas:number;status:"aguardando"|"enviando"|"erro"};
 export type MobileLog={id:string;at:Date;type:"info"|"success"|"error";message:string};
@@ -23,10 +24,12 @@ export function MobileProvider({children}:{children:ReactNode}){
  const [sessao,setSessao]=useState<S["sessao"]>([]);
  const [config,setConfig]=useState<MobileConfig>(()=>({...defaultConfig(),...readJson<Partial<MobileConfig>>(configKey,{})}));
  const [pend,setPend]=useState<Pend[]>(()=>readJson<Pend[]>(pendKey,[]).map(p=>({...p,data:new Date(p.data),locationId:p.locationId??""})));
+ const [pendingLoaded,setPendingLoaded]=useState(false);
  const [logs,setLogs]=useState<MobileLog[]>(()=>readJson<MobileLog[]>(logsKey,[]).slice(0,100).map(l=>({...l,at:new Date(l.at)})));
  const [ultimaSync,setUltimaSync]=useState(new Date(0));
+ useEffect(()=>{setSecurelogApiBase(serverUrl(config));},[config]);
  const addLog=useCallback((message:string,type:MobileLog["type"]="info")=>{const item={id:crypto.randomUUID(),at:new Date(),type,message};setLogs(prev=>{const next=[item,...prev].slice(0,100);localStorage.setItem(logsKey,JSON.stringify(next));return next;});},[]);
- const savePend=useCallback((next:Pend[])=>{setPend(next);localStorage.setItem(pendKey,JSON.stringify(next));},[]);
+ const savePend=useCallback((next:Pend[])=>{setPend(next);localStorage.setItem(pendKey,JSON.stringify(next));void savePendingRecords(next.map(p=>({...p,data:p.data.toISOString()})));},[]);
  const updateConfig=useCallback((changes:Partial<MobileConfig>)=>{setConfig(prev=>{const next={...prev,...changes};localStorage.setItem(configKey,JSON.stringify(next));return next;});addLog("Configuração do coletor atualizada");},[addLog]);
  const setLeitor=useCallback((id:string)=>{setLeitorState(id);updateConfig({deviceId:id});},[updateConfig]);
  const sendOne=useCallback(async(p:Pend)=>{
@@ -46,16 +49,17 @@ export function MobileProvider({children}:{children:ReactNode}){
  const recordReading=useCallback(async(code:string)=>{
   const item:Pend={id:crypto.randomUUID(),codigo:code.trim(),data:new Date(),locationId:local,tentativas:0,status:"aguardando"};
   setSessao(s=>[{codigo:item.codigo,data:item.data},...s]);
-  if(!online||!config.token||!config.deviceId){savePend([item,...pend]);addLog(!online?"Sem conexão: leitura salva no cache local":"Coletor sem token: leitura salva no cache local", "error");return;}
+  if(!online||!config.token||!config.deviceId){savePend([item,...pend]);addLog(!online?"Sem conexão: leitura salva no banco local":"Coletor sem token: leitura salva no banco local", "error");return;}
   try{await sendOne(item);setUltimaSync(new Date());addLog(`Leitura ${item.codigo} enviada ao servidor`,"success");}
-  catch(error){savePend([item,...pend]);setOnline(false);addLog(`Servidor indisponível: leitura ${item.codigo} salva no cache`,"error");}
+  catch(error){savePend([item,...pend]);setOnline(false);addLog(`Servidor indisponível: leitura ${item.codigo} salva no banco local`,"error");}
  },[addLog,config.deviceId,config.token,online,pend,savePend,sendOne]);
  useEffect(()=>{
   if(!config.token||!config.deviceId)return;
   const timer=window.setInterval(async()=>{try{await fetch(`${serverUrl(config)}/api/health`,{signal:AbortSignal.timeout(4000)});if(!online){setOnline(true);addLog("Conexão com o servidor restaurada","success");}}catch{if(online){setOnline(false);addLog("Servidor indisponível","error");}}},15000);
   return()=>window.clearInterval(timer);
  },[addLog,config,online]);
- useEffect(()=>{if(online&&pend.length)void sync();},[online]);
+ useEffect(()=>{void getPendingRecords().then(records=>{if(records?.length)setPend(records.map((p:PendingRecord)=>({...p,data:new Date(p.data)})));setPendingLoaded(true);}).catch(()=>setPendingLoaded(true));},[]);
+ useEffect(()=>{if(pendingLoaded&&online&&pend.length)void sync();},[online,pendingLoaded]);
  const reset=useCallback(()=>{setLocal("");setLeitorState("");setSessao([]);},[]);
  const logout=useCallback(()=>{setUser("");setRole("");reset();addLog("Sessão encerrada");},[addLog,reset]);
  const value=useMemo(()=>({user,role,setUser,setRole,local,setLocal,leitor,setLeitor,online,setOnline,sessao,recordReading,pend,sync,ultimaSync,config,updateConfig,logs,addLog,reset,logout}),[user,role,local,leitor,online,sessao,recordReading,pend,sync,ultimaSync,config,updateConfig,logs,addLog,reset,logout]);

@@ -12,6 +12,9 @@ native/securelog-recorder/bin/
 dist
 dist-ssr
 .output
+.capacitor
+android/app/build/
+android/.gradle/
 .vinxi
 .tanstack/**
 .nitro

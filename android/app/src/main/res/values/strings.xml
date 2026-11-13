@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Big Dutchman SecureLog</string>
+    <string name="title_activity_main">Big Dutchman SecureLog</string>
+    <string name="package_name">br.com.bigdutchman.securelog</string>
+    <string name="custom_url_scheme">br.com.bigdutchman.securelog</string>
+</resources>

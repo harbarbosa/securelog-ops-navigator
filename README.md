@@ -9,6 +9,21 @@ O sistema terá duas interfaces:
 1. Painel web administrativo
 2. Aplicativo mobile para coletor Zebra
 
+## Gerar APK para os coletores
+
+O aplicativo Android é empacotado a partir da mesma interface mobile do SecureLog. O APK precisa apontar para um endereço que seja acessível pelo coletor na rede; `127.0.0.1` dentro do APK representa o próprio coletor, não o computador que executa o servidor.
+
+No PowerShell, na raiz do projeto:
+
+```powershell
+$env:CAPACITOR_SERVER_URL="http://ENDERECO_DO_SERVIDOR:8080"
+npm run apk:debug
+```
+
+O arquivo gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. Para teste local na mesma máquina, pode ser usado `http://127.0.0.1:8080`; para instalar nos coletores, use o IP ou nome DNS do servidor e confirme que a porta do frontend está liberada na rede.
+
+Esse APK de debug é adequado para homologação. Para distribuição oficial, ainda será necessário criar uma chave de assinatura Android e configurar uma variante de release.
+
 ## Identidade visual
 
 Criar uma interface profissional, limpa e objetiva, com aparência de sistema corporativo de operação e segurança.

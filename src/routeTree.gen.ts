@@ -23,6 +23,7 @@ import { Route as AdminPesquisarRouteImport } from './routes/admin.pesquisar'
 import { Route as AdminRetencaoRouteImport } from './routes/admin.retencao'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as MobileIndexRouteImport } from './routes/mobile.index'
+import { Route as MobileConfigRouteImport } from './routes/mobile.config'
 import { Route as MobileLeituraRouteImport } from './routes/mobile.leitura'
 import { Route as MobileLocalRouteImport } from './routes/mobile.local'
 import { Route as MobilePendentesRouteImport } from './routes/mobile.pendentes'
@@ -99,6 +100,11 @@ const MobileIndexRoute = MobileIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MobileRoute,
 } as any)
+const MobileConfigRoute = MobileConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => MobileRoute,
+} as any)
 const MobileLeituraRoute = MobileLeituraRouteImport.update({
   id: '/leitura',
   path: '/leitura',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/config': typeof MobileConfigRoute
   '/mobile/leitura': typeof MobileLeituraRoute
   '/mobile/local': typeof MobileLocalRoute
   '/mobile/pendentes': typeof MobilePendentesRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/config': typeof MobileConfigRoute
   '/mobile/leitura': typeof MobileLeituraRoute
   '/mobile/local': typeof MobileLocalRoute
   '/mobile/pendentes': typeof MobilePendentesRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/admin/pesquisar': typeof AdminPesquisarRoute
   '/admin/retencao': typeof AdminRetencaoRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/mobile/config': typeof MobileConfigRoute
   '/mobile/leitura': typeof MobileLeituraRoute
   '/mobile/local': typeof MobileLocalRoute
   '/mobile/pendentes': typeof MobilePendentesRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/config'
     | '/mobile/leitura'
     | '/mobile/local'
     | '/mobile/pendentes'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/config'
     | '/mobile/leitura'
     | '/mobile/local'
     | '/mobile/pendentes'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/admin/pesquisar'
     | '/admin/retencao'
     | '/admin/usuarios'
+    | '/mobile/config'
     | '/mobile/leitura'
     | '/mobile/local'
     | '/mobile/pendentes'
@@ -357,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileIndexRouteImport
       parentRoute: typeof MobileRoute
     }
+    '/mobile/config': {
+      id: '/mobile/config'
+      path: '/config'
+      fullPath: '/mobile/config'
+      preLoaderRoute: typeof MobileConfigRouteImport
+      parentRoute: typeof MobileRoute
+    }
     '/mobile/leitura': {
       id: '/mobile/leitura'
       path: '/leitura'
@@ -426,6 +445,7 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface MobileRouteChildren {
+  MobileConfigRoute: typeof MobileConfigRoute
   MobileLeituraRoute: typeof MobileLeituraRoute
   MobileLocalRoute: typeof MobileLocalRoute
   MobilePendentesRoute: typeof MobilePendentesRoute
@@ -434,6 +454,7 @@ interface MobileRouteChildren {
 }
 
 const MobileRouteChildren: MobileRouteChildren = {
+  MobileConfigRoute: MobileConfigRoute,
   MobileLeituraRoute: MobileLeituraRoute,
   MobileLocalRoute: MobileLocalRoute,
   MobilePendentesRoute: MobilePendentesRoute,

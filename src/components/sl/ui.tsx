@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, ImageOff, Loader2, Maximize2, Pause, Play, ScanLine, ShieldCheck, Video, AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, ImageOff, Loader2, Maximize2, Pause, Play, ScanLine, Video, AlertTriangle, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,8 @@ import Hls from "hls.js";
 
 export function Logo({ light, size = "md" }: { light?: boolean; size?: "md" | "lg" }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className={cn("grid place-items-center rounded-md bg-brand text-brand-foreground", size === "lg" ? "h-11 w-11" : "h-8 w-8")}>
-        <ShieldCheck className={size === "lg" ? "h-6 w-6" : "h-4 w-4"} />
-      </div>
-      <span className={cn("font-semibold tracking-tight", size === "lg" ? "text-2xl" : "text-lg", light ? "text-sidebar-accent-foreground" : "text-primary")}>
-        Secure<span className="text-brand">Log</span>
-      </span>
+    <div className={cn("inline-flex items-center justify-center rounded-lg bg-white px-2 shadow-sm", size === "lg" ? "h-[78px] w-[250px]" : "h-10 w-[150px]", light && "ring-1 ring-white/20")}>
+      <img src="/bigdutchman-logo.png" alt="Big Dutchman" className="max-h-full w-full object-contain" />
     </div>
   );
 }

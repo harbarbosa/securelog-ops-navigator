@@ -29,5 +29,7 @@ export const securelog={
   delete:(entity:EntityName,id:string)=>api<{id:string;deleted:true}>(`/api/manage/${entity}/${encodeURIComponent(id)}`,{method:'DELETE'}),
  provisionDeviceToken:(id:string)=>api<{device_id:string;token:string}>(`/api/manage/devices/${encodeURIComponent(id)}/token`,{method:'POST'}),
  associateDevice:(id:string,location_id:string)=>api<{device_id:string;status:string}>(`/api/manage/devices/${encodeURIComponent(id)}/associate`,{method:'POST',body:JSON.stringify({location_id})}),
+ userLocations:(id:string)=>api<{location_ids:string[]}>(`/api/manage/users/${encodeURIComponent(id)}/locations`),
+ setUserLocations:(id:string,location_ids:string[])=>api<{user_id:string;location_ids:string[]}>(`/api/manage/users/${encodeURIComponent(id)}/locations`,{method:'PUT',body:JSON.stringify({location_ids})}),
  readings:(code?:string,limit=25,offset=0)=>api<Page<Record<string,unknown>>>(`/api/readings?limit=${limit}&offset=${offset}${code?'&code='+encodeURIComponent(code):''}`)
 };

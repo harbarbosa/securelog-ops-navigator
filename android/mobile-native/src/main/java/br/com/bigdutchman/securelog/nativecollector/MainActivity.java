@@ -14,8 +14,11 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -28,6 +31,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.UUID;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "securelog_native_collector";
@@ -43,6 +50,9 @@ public class MainActivity extends Activity {
     private TextView status;
     private LinearLayout content;
     private SharedPreferences prefs;
+    private Spinner locationSpinner;
+    private EditText codeInput;
+    private JSONArray operatorLocations;
 
     @Override
     public void onCreate(Bundle state) {
@@ -109,10 +119,14 @@ public class MainActivity extends Activity {
                 JSONObject user = response.optJSONObject("user");
                 String role = user == null ? "operator" : user.optString("role", "operator");
                 saveCachedUser(username, password, role);
-                runOnUiThread(() -> showHome(username, role, true));
+                JSONArray locations = fetchLocations(server, port);
+                cacheLocations(locations);
+                syncPendingReadings();
+                runOnUiThread(() -> showHome(username, role, true, locations));
             } catch (Exception error) {
                 if (matchesCachedUser(username, password)) {
-                    runOnUiThread(() -> showHome(username, prefs.getString("role", "operator"), false));
+                    JSONArray locations = readCachedLocations();
+                    runOnUiThread(() -> showHome(username, prefs.getString("role", "operator"), false, locations));
                 } else {
                     runOnUiThread(() -> {
                         status.setText("Não foi possível conectar e não há acesso offline salvo.");
@@ -137,20 +151,88 @@ public class MainActivity extends Activity {
             output.write(body.getBytes(StandardCharsets.UTF_8));
         }
         int code = connection.getResponseCode();
+        String cookie = connection.getHeaderField("Set-Cookie");
+        if (cookie != null) prefs.edit().putString("session_cookie", cookie.split(";", 2)[0]).apply();
         InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
         String responseBody = read(stream);
         if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + responseBody);
         return new JSONObject(responseBody);
     }
 
-    private void showHome(String username, String role, boolean online) {
+    private JSONArray fetchLocations(String server, String port) throws Exception {
+        HttpURLConnection connection = open(server, port, "/api/locations?limit=100&offset=0", "GET");
+        int code = connection.getResponseCode();
+        String body = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
+        if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + body);
+        return new JSONObject(body).optJSONArray("items");
+    }
+
+    private void sendReading(JSONObject event) throws Exception {
+        String server = prefs.getString("server", "");
+        String port = prefs.getString("port", "3333");
+        HttpURLConnection connection = open(server, port, "/api/device/readings", "POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Authorization", "Bearer " + prefs.getString("device_token", ""));
+        try (OutputStream output = connection.getOutputStream()) { output.write(event.toString().getBytes(StandardCharsets.UTF_8)); }
+        int code = connection.getResponseCode();
+        String body = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
+        if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + body);
+    }
+
+    private HttpURLConnection open(String server, String port, String path, String method) throws Exception {
+        String host = server.startsWith("http://") || server.startsWith("https://") ? server : "http://" + server;
+        HttpURLConnection connection = (HttpURLConnection) new URL(host.replaceAll("/$", "") + ":" + port + path).openConnection();
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout(8000);
+        connection.setReadTimeout(10000);
+        String cookie = prefs.getString("session_cookie", "");
+        if (!cookie.isEmpty()) connection.setRequestProperty("Cookie", cookie);
+        return connection;
+    }
+
+    private void cacheLocations(JSONArray locations) {
+        if (locations != null) prefs.edit().putString("locations_json", locations.toString()).apply();
+    }
+
+    private JSONArray readCachedLocations() {
+        try { return new JSONArray(prefs.getString("locations_json", "[]")); }
+        catch (Exception error) { return new JSONArray(); }
+    }
+
+    private void enqueueReading(JSONObject event) {
+        try {
+            JSONArray pending = new JSONArray(prefs.getString("pending_readings", "[]"));
+            pending.put(event);
+            prefs.edit().putString("pending_readings", pending.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    private void syncPendingReadings() {
+        try {
+            JSONArray pending = new JSONArray(prefs.getString("pending_readings", "[]"));
+            JSONArray remaining = new JSONArray();
+            for (int i = 0; i < pending.length(); i++) {
+                JSONObject event = pending.optJSONObject(i);
+                try { if (event == null) throw new Exception("Leitura inválida"); sendReading(event); }
+                catch (Exception error) { if (event != null) remaining.put(event); }
+            }
+            prefs.edit().putString("pending_readings", remaining.toString()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    private void showHome(String username, String role, boolean online, JSONArray locations) {
+        if (!"admin".equalsIgnoreCase(role)) {
+            showOperator(username, online, locations);
+            return;
+        }
         content.removeAllViews();
         TextView title = text("SecureLog Coletor", 26, Color.rgb(235, 118, 0));
         title.setTypeface(null, 1);
         content.addView(title, params(WRAP, dp(50)));
         content.addView(text(online ? "Conectado ao servidor" : "Modo offline", 16, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(42)));
         content.addView(text("Usuário: " + username + "\nPerfil: " + role, 17, Color.DKGRAY), params(WRAP, dp(72)));
-        content.addView(text("A próxima etapa adicionará a seleção do local e o recebimento das leituras Zebra.", 16, Color.DKGRAY), params(WRAP, dp(90)));
+        content.addView(text("Administrador autenticado. Use as configurações para revisar o coletor.", 16, Color.DKGRAY), params(WRAP, dp(90)));
         if ("admin".equalsIgnoreCase(role)) {
             Button settings = button("Configurações");
             settings.setOnClickListener(v -> showConfig());
@@ -159,6 +241,63 @@ public class MainActivity extends Activity {
         Button logout = button("Sair");
         logout.setOnClickListener(v -> showLogin());
         content.addView(logout, params(WRAP, dp(56)));
+    }
+
+    private void showOperator(String username, boolean online, JSONArray locations) {
+        operatorLocations = locations == null ? new JSONArray() : locations;
+        content.removeAllViews();
+        content.addView(text("Leituras SecureLog", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(52)));
+        content.addView(text("Operador: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
+        TextView connection = text(online ? "Conectado ao servidor" : "Modo offline", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20));
+        content.addView(connection, params(WRAP, dp(42)));
+        content.addView(text("Local da leitura", 14, Color.DKGRAY), params(WRAP, dp(30)));
+        locationSpinner = new Spinner(this);
+        String[] names = new String[Math.max(operatorLocations.length(), 1)];
+        for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
+        if (operatorLocations.length() == 0) names[0] = "Nenhum local disponível";
+        locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
+        content.addView(locationSpinner, params(WRAP, dp(58)));
+        codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
+        content.addView(codeInput, params(WRAP, dp(64)));
+        Button read = button("Registrar leitura");
+        read.setOnClickListener(v -> recordReading(connection));
+        content.addView(read, params(WRAP, dp(58)));
+        content.addView(text("As leituras sem conexão ficam pendentes neste coletor e serão sincronizadas na próxima etapa.", 14, Color.DKGRAY), params(WRAP, dp(70)));
+        Button logout = button("Sair");
+        logout.setOnClickListener(v -> showLogin());
+        content.addView(logout, params(WRAP, dp(56)));
+    }
+
+    private void recordReading(TextView connection) {
+        String code = codeInput.getText().toString().trim();
+        if (code.isEmpty() || operatorLocations.length() == 0) {
+            connection.setText("Informe um código e selecione um local.");
+            connection.setTextColor(Color.rgb(180, 50, 50));
+            return;
+        }
+        JSONObject location = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition());
+        String locationId = location == null ? "" : location.optString("id", "");
+        JSONObject event = new JSONObject();
+        try {
+            event.put("device_event_id", UUID.randomUUID().toString());
+            event.put("code", code);
+            event.put("location_id", locationId);
+            event.put("occurred_at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(new Date()));
+        } catch (Exception error) {
+            connection.setText("Não foi possível preparar a leitura.");
+            return;
+        }
+        codeInput.setText("");
+        executor.execute(() -> {
+            try {
+                if (prefs.getString("device_token", "").isEmpty()) throw new Exception("Token não configurado");
+                sendReading(event);
+                runOnUiThread(() -> { connection.setText("Leitura enviada ao servidor."); connection.setTextColor(Color.rgb(35, 130, 75)); });
+            } catch (Exception error) {
+                enqueueReading(event);
+                runOnUiThread(() -> { connection.setText("Sem comunicação: leitura salva no coletor."); connection.setTextColor(Color.rgb(180, 100, 20)); });
+            }
+        });
     }
 
     private void requestConfigAccess() {

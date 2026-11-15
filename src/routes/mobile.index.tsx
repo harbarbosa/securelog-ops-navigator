@@ -51,7 +51,10 @@ function MLogin() {
   const serverInputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
   return (
     <div className="flex min-h-full flex-col justify-center p-6">
-      <div className="mb-8 flex justify-center"><Logo size="lg" /></div>
+      <div className="mb-6 flex justify-center"><Logo size="lg" /></div>
+      <div className="mx-auto mb-6 w-fit rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-brand">
+        SecureLog Mobile · versão 1.0.2
+      </div>
       <form onSubmit={go} className="space-y-4">
         <div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Servidor da API"><input ref={hostRef} defaultValue={m.config.serverHost} type="text" inputMode="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="192.168.0.10" className={serverInputClass} /></Field><Field label="Porta"><input ref={portRef} defaultValue={m.config.serverPort} type="tel" inputMode="numeric" autoComplete="off" className={serverInputClass} /></Field></div>
         <Field label="Usuário"><Input className="h-14 text-lg" value={m.user} onChange={(e) => m.setUser(e.target.value)} /></Field>

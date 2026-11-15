@@ -13,13 +13,14 @@ export class ApiError extends Error {
  constructor(public status:number,message:string){super(message);this.name='ApiError';}
 }
 export async function api<T>(path:string,options:RequestInit={}):Promise<T>{
- const response=await fetch((runtimeBaseUrl||baseUrl)+path,{...options,credentials:'include',headers:{...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}});
+ const controller=new AbortController();const timeout=window.setTimeout(()=>controller.abort(),10000);
+ const response=await fetch((runtimeBaseUrl||baseUrl)+path,{...options,signal:options.signal??controller.signal,credentials:'include',headers:{...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}}).finally(()=>window.clearTimeout(timeout));
  const payload:unknown=await response.json().catch(()=>null);
  if(!response.ok){const error=payload as {error?:string}|null;throw new ApiError(response.status,error?.error??'Falha de comunicação com o SecureLog');}
  return payload as T;
 }
 export const securelog={
- login:(username:string,password:string)=>api<{user:SecureLogUser}>('/api/auth/login',{method:'POST',signal:AbortSignal.timeout(6000),body:JSON.stringify({username,password})}),
+ login:(username:string,password:string)=>api<{user:SecureLogUser}>('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})}),
  me:()=>api<{user:SecureLogUser}>('/api/auth/me'),
  logout:()=>api<{ok:boolean}>('/api/auth/logout',{method:'POST'}),
  list:<T>(entity:EntityName,limit=25,offset=0)=>api<Page<T>>(`/api/${entity}?limit=${limit}&offset=${offset}`),

@@ -15,9 +15,11 @@ import {registerMedia} from './media.js';
 const app=Fastify({logger:true,bodyLimit:1024*1024});
 const origin=process.env.CORS_ORIGIN;
 if(!origin) throw new Error('CORS_ORIGIN missing');
-await app.register(cors,{origin:origin.split(',').map(s=>s.trim()),credentials:true});
+const nativeOrigins=['capacitor://localhost','http://localhost','https://localhost','ionic://localhost'];
+const configuredOrigins=origin.split(',').map(s=>s.trim()).filter(Boolean);
+const allowedOrigins=new Set([...configuredOrigins,...nativeOrigins]);
+await app.register(cors,{origin:[...allowedOrigins],credentials:true});
 await app.register(cookie);
-const allowedOrigins=new Set(origin.split(',').map(s=>s.trim()));
 app.addHook('onRequest',async(req,reply)=>{
  if(!['POST','PUT','PATCH','DELETE'].includes(req.method))return;
  // Browser cookie-authenticated requests must come from an allowed origin.

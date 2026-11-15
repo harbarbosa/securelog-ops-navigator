@@ -46,7 +46,9 @@ public class MainActivity extends Activity {
     private EditText configServerInput;
     private EditText configPortInput;
     private EditText configDeviceInput;
+    private EditText configSerialInput;
     private EditText configTokenInput;
+    private TextView configStatus;
     private TextView status;
     private LinearLayout content;
     private SharedPreferences prefs;
@@ -333,10 +335,12 @@ public class MainActivity extends Activity {
         configServerInput = field("Endereço do servidor", prefs.getString("server", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         configPortInput = field("Porta da API", prefs.getString("port", "3333"), InputType.TYPE_CLASS_NUMBER);
         configDeviceInput = field("Nome do coletor", prefs.getString("device_name", ""), InputType.TYPE_CLASS_TEXT);
+        configSerialInput = field("Número de série do coletor", prefs.getString("serial_number", ""), InputType.TYPE_CLASS_TEXT);
         configTokenInput = field("Token do coletor", prefs.getString("device_token", ""), InputType.TYPE_CLASS_TEXT);
         content.addView(configServerInput, params(WRAP, dp(58)));
         content.addView(configPortInput, params(WRAP, dp(58)));
         content.addView(configDeviceInput, params(WRAP, dp(58)));
+        content.addView(configSerialInput, params(WRAP, dp(58)));
         content.addView(configTokenInput, params(WRAP, dp(58)));
         Button save = button("Salvar configurações");
         save.setOnClickListener(v -> saveConfig());
@@ -344,20 +348,76 @@ public class MainActivity extends Activity {
         Button back = button("Voltar para o login");
         back.setOnClickListener(v -> showLogin());
         content.addView(back, params(WRAP, dp(56)));
+        configStatus = text("", 14, Color.DKGRAY);
+        configStatus.setPadding(0, dp(12), 0, 0);
+        content.addView(configStatus, params(WRAP, dp(64)));
         setContentView(scroll(content));
     }
 
     private void saveConfig() {
         String server = configServerInput.getText().toString().trim();
         String port = configPortInput.getText().toString().trim();
-        if (server.isEmpty() || port.isEmpty()) {
+        String name = configDeviceInput.getText().toString().trim();
+        String serial = configSerialInput.getText().toString().trim();
+        if (server.isEmpty() || port.isEmpty() || name.isEmpty() || serial.isEmpty()) {
             new AlertDialog.Builder(this).setTitle("Configuração incompleta").setMessage("Informe o endereço e a porta do servidor.").setPositiveButton("OK", null).show();
             return;
         }
         prefs.edit().putString("server", server).putString("port", port)
-                .putString("device_name", configDeviceInput.getText().toString().trim())
+                .putString("device_name", name).putString("serial_number", serial)
                 .putString("device_token", configTokenInput.getText().toString().trim()).apply();
-        new AlertDialog.Builder(this).setTitle("Configurações salvas").setMessage("O coletor está pronto para tentar o login.").setPositiveButton("OK", (dialog, which) -> showLogin()).show();
+        configStatus.setText("Registrando este coletor no servidor...");
+        executor.execute(() -> {
+            try {
+                JSONObject registration = registerCollector(server, port, name, serial);
+                String statusValue = registration.optString("status", "pending");
+                runOnUiThread(() -> configStatus.setText(statusValue.equals("associated") ? "Coletor já associado e autorizado." : "Coletor registrado como pendente. Associe-o no painel web."));
+                if ("pending".equals(statusValue)) pollPairing(server, port);
+            } catch (Exception error) {
+                runOnUiThread(() -> configStatus.setText("Não foi possível registrar agora. Verifique a rede e tente novamente."));
+            }
+        });
+        new AlertDialog.Builder(this).setTitle("Configurações salvas").setMessage("O coletor foi configurado. Se aparecer como pendente, associe-o a um local no painel web.").setPositiveButton("OK", (dialog, which) -> showLogin()).show();
+    }
+
+    private JSONObject registerCollector(String server, String port, String name, String serial) throws Exception {
+        HttpURLConnection connection = open(server, port, "/api/device/register", "POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        JSONObject body = new JSONObject().put("name", name).put("serial_number", serial);
+        try (OutputStream output = connection.getOutputStream()) { output.write(body.toString().getBytes(StandardCharsets.UTF_8)); }
+        int code = connection.getResponseCode();
+        String response = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
+        if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + response);
+        JSONObject result = new JSONObject(response);
+        prefs.edit().putString("device_id", result.optString("device_id", ""))
+                .putString("pairing_code", result.optString("pairing_code", "")).apply();
+        if ("associated".equals(result.optString("status"))) prefs.edit().putString("device_token", prefs.getString("device_token", "")).apply();
+        return result;
+    }
+
+    private void pollPairing(String server, String port) {
+        executor.execute(() -> {
+            for (int attempt = 0; attempt < 60; attempt++) {
+                try {
+                    String deviceId = prefs.getString("device_id", "");
+                    String pairingCode = prefs.getString("pairing_code", "");
+                    if (deviceId.isEmpty() || pairingCode.isEmpty()) return;
+                    HttpURLConnection connection = open(server, port, "/api/device/pairing/" + deviceId, "GET");
+                    connection.setRequestProperty("X-Pairing-Code", pairingCode);
+                    int code = connection.getResponseCode();
+                    String response = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
+                    if (code == 200) {
+                        JSONObject payload = new JSONObject(response);
+                        if ("associated".equals(payload.optString("status")) && payload.has("token")) {
+                            prefs.edit().putString("device_token", payload.getString("token")).remove("pairing_code").apply();
+                            return;
+                        }
+                    }
+                } catch (Exception ignored) { }
+                try { Thread.sleep(5000); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); return; }
+            }
+        });
     }
 
     private void saveCachedUser(String username, String password, String role) {

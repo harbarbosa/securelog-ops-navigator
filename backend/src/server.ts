@@ -57,7 +57,7 @@ const entities={
  locations:{table:'locations',columns:'id,name,description,primary_camera_id,active',sort:'name'},
  recorders:{table:'recorders',columns:'id,name,host,port,rtsp_port,sdk_port,protocol,username,(password_ciphertext IS NOT NULL) AS has_credentials,active,last_seen_at',sort:'name'},
  cameras:{table:'cameras',columns:'id,name,recorder_id,channel,active',sort:'name'},
- devices:{table:'devices',columns:'id,name,serial_number,location_id,active,last_seen_at',sort:'name'},
+ devices:{table:'devices',columns:'id,name,serial_number,location_id,active,last_seen_at,(EXISTS (SELECT 1 FROM device_credentials dc WHERE dc.device_id=devices.id)) AS has_token',sort:'name'},
  users:{table:'users',columns:'id,name,username,email,role,active,created_at',sort:'name'}
 } as const;
 app.get('/api/:entity',async(req,reply)=>{

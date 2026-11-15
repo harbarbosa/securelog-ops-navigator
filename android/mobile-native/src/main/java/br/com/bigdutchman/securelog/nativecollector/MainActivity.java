@@ -1,6 +1,7 @@
 package br.com.bigdutchman.securelog.nativecollector;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -35,6 +36,10 @@ public class MainActivity extends Activity {
     private EditText portInput;
     private EditText userInput;
     private EditText passwordInput;
+    private EditText configServerInput;
+    private EditText configPortInput;
+    private EditText configDeviceInput;
+    private EditText configTokenInput;
     private TextView status;
     private LinearLayout content;
     private SharedPreferences prefs;
@@ -60,19 +65,19 @@ public class MainActivity extends Activity {
         TextView subtitle = text("Entre com sua conta para iniciar as leituras.", 15, Color.DKGRAY);
         content.addView(subtitle, params(WRAP, dp(36)));
 
-        serverInput = field("Servidor da API", prefs.getString("server", "192.168.1.16"), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        portInput = field("Porta", prefs.getString("port", "3333"), InputType.TYPE_CLASS_NUMBER);
         userInput = field("Usuário", prefs.getString("last_user", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         passwordInput = field("Senha", "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
 
-        content.addView(serverInput, params(WRAP, dp(58)));
-        content.addView(portInput, params(WRAP, dp(58)));
         content.addView(userInput, params(WRAP, dp(58)));
         content.addView(passwordInput, params(WRAP, dp(58)));
 
         Button login = button("Entrar");
         login.setOnClickListener(v -> login());
         content.addView(login, params(WRAP, dp(56)));
+
+        Button settings = button("Configurações");
+        settings.setOnClickListener(v -> requestConfigAccess());
+        content.addView(settings, params(WRAP, dp(56)));
 
         status = text("", 14, Color.DKGRAY);
         status.setPadding(0, dp(14), 0, 0);
@@ -81,16 +86,21 @@ public class MainActivity extends Activity {
     }
 
     private void login() {
-        String server = serverInput.getText().toString().trim();
-        String port = portInput.getText().toString().trim();
+        String server = prefs.getString("server", "").trim();
+        String port = prefs.getString("port", "").trim();
         String username = userInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
-        if (server.isEmpty() || port.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            status.setText("Preencha servidor, porta, usuário e senha.");
+        if (server.isEmpty() || port.isEmpty()) {
+            status.setText("Configure o servidor antes de entrar.");
+            status.setTextColor(Color.rgb(180, 100, 20));
+            return;
+        }
+        if (username.isEmpty() || password.isEmpty()) {
+            status.setText("Preencha usuário e senha.");
             status.setTextColor(Color.rgb(180, 50, 50));
             return;
         }
-        prefs.edit().putString("server", server).putString("port", port).putString("last_user", username).apply();
+        prefs.edit().putString("last_user", username).apply();
         status.setText("Conectando ao servidor...");
         status.setTextColor(Color.rgb(70, 80, 90));
         executor.execute(() -> {
@@ -141,9 +151,74 @@ public class MainActivity extends Activity {
         content.addView(text(online ? "Conectado ao servidor" : "Modo offline", 16, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(42)));
         content.addView(text("Usuário: " + username + "\nPerfil: " + role, 17, Color.DKGRAY), params(WRAP, dp(72)));
         content.addView(text("A próxima etapa adicionará a seleção do local e o recebimento das leituras Zebra.", 16, Color.DKGRAY), params(WRAP, dp(90)));
+        if ("admin".equalsIgnoreCase(role)) {
+            Button settings = button("Configurações");
+            settings.setOnClickListener(v -> showConfig());
+            content.addView(settings, params(WRAP, dp(56)));
+        }
         Button logout = button("Sair");
         logout.setOnClickListener(v -> showLogin());
         content.addView(logout, params(WRAP, dp(56)));
+    }
+
+    private void requestConfigAccess() {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(24), 0, dp(24), 0);
+        EditText username = field("Usuário administrador", "admin", InputType.TYPE_CLASS_TEXT);
+        EditText password = field("Senha local", "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        form.addView(username, params(WRAP, dp(58)));
+        form.addView(password, params(WRAP, dp(58)));
+        new AlertDialog.Builder(this)
+                .setTitle("Acesso às configurações")
+                .setMessage("Use o administrador local ou uma conta administradora do sistema.")
+                .setView(form)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Continuar", (dialog, which) -> {
+                    if ("admin".equals(username.getText().toString().trim()) && "zebra123".equals(password.getText().toString())) {
+                        showConfig();
+                    } else {
+                        status.setText("Usuário ou senha de configuração inválidos.");
+                        status.setTextColor(Color.rgb(180, 50, 50));
+                    }
+                }).show();
+    }
+
+    private void showConfig() {
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(36), dp(24), dp(24));
+        content.setBackgroundColor(Color.rgb(247, 248, 250));
+        content.addView(text("Configurações do coletor", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(58)));
+        content.addView(text("Essas informações ficam armazenadas somente neste coletor.", 14, Color.DKGRAY), params(WRAP, dp(48)));
+        configServerInput = field("Endereço do servidor", prefs.getString("server", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        configPortInput = field("Porta da API", prefs.getString("port", "3333"), InputType.TYPE_CLASS_NUMBER);
+        configDeviceInput = field("Nome do coletor", prefs.getString("device_name", ""), InputType.TYPE_CLASS_TEXT);
+        configTokenInput = field("Token do coletor", prefs.getString("device_token", ""), InputType.TYPE_CLASS_TEXT);
+        content.addView(configServerInput, params(WRAP, dp(58)));
+        content.addView(configPortInput, params(WRAP, dp(58)));
+        content.addView(configDeviceInput, params(WRAP, dp(58)));
+        content.addView(configTokenInput, params(WRAP, dp(58)));
+        Button save = button("Salvar configurações");
+        save.setOnClickListener(v -> saveConfig());
+        content.addView(save, params(WRAP, dp(56)));
+        Button back = button("Voltar para o login");
+        back.setOnClickListener(v -> showLogin());
+        content.addView(back, params(WRAP, dp(56)));
+        setContentView(scroll(content));
+    }
+
+    private void saveConfig() {
+        String server = configServerInput.getText().toString().trim();
+        String port = configPortInput.getText().toString().trim();
+        if (server.isEmpty() || port.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("Configuração incompleta").setMessage("Informe o endereço e a porta do servidor.").setPositiveButton("OK", null).show();
+            return;
+        }
+        prefs.edit().putString("server", server).putString("port", port)
+                .putString("device_name", configDeviceInput.getText().toString().trim())
+                .putString("device_token", configTokenInput.getText().toString().trim()).apply();
+        new AlertDialog.Builder(this).setTitle("Configurações salvas").setMessage("O coletor está pronto para tentar o login.").setPositiveButton("OK", (dialog, which) -> showLogin()).show();
     }
 
     private void saveCachedUser(String username, String password, String role) {

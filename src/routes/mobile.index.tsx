@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertCircle, Loader2, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,17 +17,18 @@ function MLogin() {
   const m = useMobile();
   const nav = useNavigate();
   const [pass, setPass] = useState("");
-  const [host, setHost] = useState(m.config.serverHost);
-  const [port, setPort] = useState(String(m.config.serverPort));
+  const hostRef = useRef<HTMLInputElement>(null);
+  const portRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     if (!m.user || !pass) return setErr("Informe usuário e senha.");
-    const serverPort=Number(port);
-    if(!host.trim()||!Number.isInteger(serverPort)||serverPort<1||serverPort>65535)return setErr("Informe o endereço e a porta da API.");
-    m.updateConfig({serverHost:host.trim(),serverPort});
-    setSecurelogApiBase(`http://${host.trim()}:${serverPort}`);
+    const serverHost=hostRef.current?.value.trim()??"";
+    const serverPort=Number(portRef.current?.value??"");
+    if(!serverHost||!Number.isInteger(serverPort)||serverPort<1||serverPort>65535)return setErr("Informe o endereço e a porta da API.");
+    m.updateConfig({serverHost,serverPort});
+    setSecurelogApiBase(`http://${serverHost}:${serverPort}`);
     if (!m.online || navigator.onLine === false) {
       const cached=await getCachedUser(m.user,pass).catch(()=>null);
       if(cached){m.setUser(cached.username);m.setRole(cached.role);nav({to:cached.role==="admin"?"/mobile/config":"/mobile/local"});}
@@ -51,7 +52,7 @@ function MLogin() {
     <div className="flex min-h-full flex-col justify-center p-6">
       <div className="mb-8 flex justify-center"><Logo size="lg" /></div>
       <form onSubmit={go} className="space-y-4">
-        <div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Servidor da API"><Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="192.168.0.10" /></Field><Field label="Porta"><Input type="number" value={port} onChange={(e) => setPort(e.target.value)} placeholder="3333" /></Field></div>
+        <div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Servidor da API"><Input ref={hostRef} defaultValue={m.config.serverHost} inputMode="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="192.168.0.10" /></Field><Field label="Porta"><Input ref={portRef} type="number" defaultValue={m.config.serverPort} inputMode="numeric" /></Field></div>
         <Field label="Usuário"><Input className="h-14 text-lg" value={m.user} onChange={(e) => m.setUser(e.target.value)} /></Field>
         <Field label="Senha"><Input className="h-14 text-lg" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••" /></Field>
         {err && <div className="flex gap-2 rounded-md bg-danger-soft p-3 text-sm text-destructive"><AlertCircle className="h-4 w-4 shrink-0" />{err}</div>}

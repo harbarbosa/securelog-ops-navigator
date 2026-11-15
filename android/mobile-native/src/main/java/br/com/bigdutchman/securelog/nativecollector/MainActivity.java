@@ -3,10 +3,17 @@ package br.com.bigdutchman.securelog.nativecollector;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Build;
 import android.text.InputType;
+import android.view.MotionEvent;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,6 +56,23 @@ public class MainActivity extends Activity {
     private EditText configSerialInput;
     private EditText configTokenInput;
     private TextView configStatus;
+    private TextView operatorConnection;
+    private boolean sessionActive;
+    private boolean receiverRegistered;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable inactivityLogout = () -> { if (sessionActive) showLogin(); };
+    private final Runnable syncLoop = new Runnable() {
+        @Override public void run() { if (sessionActive) { executor.execute(MainActivity.this::syncPendingReadings); handler.postDelayed(this, 15000); } }
+    };
+    private final BroadcastReceiver zebraReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            String code = intent.getStringExtra("com.symbol.datawedge.data_string");
+            if (code != null && !code.trim().isEmpty() && sessionActive && codeInput != null) {
+                codeInput.setText(code.trim());
+                if (operatorConnection != null) recordReading(operatorConnection);
+            }
+        }
+    };
     private TextView status;
     private LinearLayout content;
     private SharedPreferences prefs;
@@ -63,7 +87,33 @@ public class MainActivity extends Activity {
         showLogin();
     }
 
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (sessionActive && event.getAction() == MotionEvent.ACTION_DOWN) resetInactivity();
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (!receiverRegistered) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction("com.symbol.datawedge.data_string");
+            filter.addCategory(Intent.CATEGORY_DEFAULT);
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(zebraReceiver, filter, Context.RECEIVER_EXPORTED);
+            else registerReceiver(zebraReceiver, filter);
+            receiverRegistered = true;
+        }
+        configureDataWedge();
+    }
+
+    @Override protected void onPause() {
+        if (receiverRegistered) { unregisterReceiver(zebraReceiver); receiverRegistered = false; }
+        super.onPause();
+    }
+
     private void showLogin() {
+        sessionActive = false;
+        handler.removeCallbacks(inactivityLogout);
+        handler.removeCallbacks(syncLoop);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(24), dp(36), dp(24), dp(24));
@@ -224,6 +274,7 @@ public class MainActivity extends Activity {
     }
 
     private void showHome(String username, String role, boolean online, JSONArray locations) {
+        activateSession();
         if (!"admin".equalsIgnoreCase(role)) {
             showOperator(username, online, locations);
             return;
@@ -239,6 +290,9 @@ public class MainActivity extends Activity {
             Button settings = button("Configurações");
             settings.setOnClickListener(v -> showConfig());
             content.addView(settings, params(WRAP, dp(56)));
+            Button logs = button("Logs do coletor");
+            logs.setOnClickListener(v -> showLogs());
+            content.addView(logs, params(WRAP, dp(56)));
         }
         Button logout = button("Sair");
         logout.setOnClickListener(v -> showLogin());
@@ -246,12 +300,13 @@ public class MainActivity extends Activity {
     }
 
     private void showOperator(String username, boolean online, JSONArray locations) {
+        activateSession();
         operatorLocations = locations == null ? new JSONArray() : locations;
         content.removeAllViews();
         content.addView(text("Leituras SecureLog", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(52)));
         content.addView(text("Operador: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
-        TextView connection = text(online ? "Conectado ao servidor" : "Modo offline", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20));
-        content.addView(connection, params(WRAP, dp(42)));
+        operatorConnection = text(online ? "Conectado ao servidor" : "Modo offline", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20));
+        content.addView(operatorConnection, params(WRAP, dp(42)));
         content.addView(text("Local da leitura", 14, Color.DKGRAY), params(WRAP, dp(30)));
         locationSpinner = new Spinner(this);
         String[] names = new String[Math.max(operatorLocations.length(), 1)];
@@ -262,7 +317,7 @@ public class MainActivity extends Activity {
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
         content.addView(codeInput, params(WRAP, dp(64)));
         Button read = button("Registrar leitura");
-        read.setOnClickListener(v -> recordReading(connection));
+        read.setOnClickListener(v -> recordReading(operatorConnection));
         content.addView(read, params(WRAP, dp(58)));
         content.addView(text("As leituras sem conexão ficam pendentes neste coletor e serão sincronizadas na próxima etapa.", 14, Color.DKGRAY), params(WRAP, dp(70)));
         Button logout = button("Sair");
@@ -294,12 +349,49 @@ public class MainActivity extends Activity {
             try {
                 if (prefs.getString("device_token", "").isEmpty()) throw new Exception("Token não configurado");
                 sendReading(event);
+                appendLog("Leitura enviada: " + code);
                 runOnUiThread(() -> { connection.setText("Leitura enviada ao servidor."); connection.setTextColor(Color.rgb(35, 130, 75)); });
             } catch (Exception error) {
                 enqueueReading(event);
+                appendLog("Leitura pendente: " + code + " (" + error.getMessage() + ")");
                 runOnUiThread(() -> { connection.setText("Sem comunicação: leitura salva no coletor."); connection.setTextColor(Color.rgb(180, 100, 20)); });
             }
         });
+    }
+
+    private void activateSession() { sessionActive = true; resetInactivity(); handler.removeCallbacks(syncLoop); handler.postDelayed(syncLoop, 15000); }
+    private void resetInactivity() { handler.removeCallbacks(inactivityLogout); handler.postDelayed(inactivityLogout, 5 * 60 * 1000L); }
+
+    private void configureDataWedge() {
+        Intent create = new Intent("com.symbol.datawedge.api.ACTION");
+        create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", "SecureLog");
+        sendBroadcast(create);
+        Bundle profileConfig = new Bundle();
+        profileConfig.putString("PROFILE_NAME", "SecureLog");
+        profileConfig.putString("PROFILE_ENABLED", "true");
+        profileConfig.putString("CONFIG_MODE", "UPDATE");
+        profileConfig.putString("PLUGIN_NAME", "INTENT");
+        Bundle intentConfig = new Bundle();
+        intentConfig.putString("intent_output_enabled", "true");
+        intentConfig.putString("intent_action", "com.symbol.datawedge.data_string");
+        intentConfig.putString("intent_delivery", "2");
+        profileConfig.putBundle("PARAM_LIST", intentConfig);
+        Intent configure = new Intent("com.symbol.datawedge.api.ACTION");
+        configure.putExtra("com.symbol.datawedge.api.SET_CONFIG", profileConfig);
+        sendBroadcast(configure);
+    }
+
+    private void showLogs() {
+        String logs = prefs.getString("local_logs", "Nenhum evento registrado.");
+        new AlertDialog.Builder(this).setTitle("Logs do coletor").setMessage(logs).setPositiveButton("Fechar", null).show();
+    }
+
+    private void appendLog(String message) {
+        String line = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(new Date()) + " - " + message;
+        String logs = prefs.getString("local_logs", "");
+        String updated = (logs.isEmpty() ? line : logs + "\n" + line);
+        if (updated.length() > 12000) updated = updated.substring(updated.length() - 12000);
+        prefs.edit().putString("local_logs", updated).apply();
     }
 
     private void requestConfigAccess() {

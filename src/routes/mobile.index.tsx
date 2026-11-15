@@ -65,7 +65,7 @@ function MLogin() {
     <div className="flex min-h-full flex-col justify-center p-6">
       <div className="mb-6 flex justify-center"><Logo size="lg" /></div>
       <div className="mx-auto mb-6 w-fit rounded-full border border-brand/30 bg-brand/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-brand">
-        SecureLog Mobile · versão 1.0.2
+        SecureLog Mobile · versão 1.0.3
       </div>
       <form onSubmit={go} className="space-y-4">
         <div className="rounded-md border border-border bg-muted/30 p-3"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">Servidor da API</p><p className="truncate font-mono text-sm text-foreground">{m.config.serverHost || "Não configurado"}:{m.config.serverPort}</p></div><Button type="button" variant="outline" size="sm" onClick={editServer}>Alterar</Button></div></div>

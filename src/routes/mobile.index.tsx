@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, Loader2, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,15 +17,28 @@ function MLogin() {
   const m = useMobile();
   const nav = useNavigate();
   const [pass, setPass] = useState("");
-  const hostRef = useRef<HTMLInputElement>(null);
-  const portRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+  const editServer = () => {
+    const nextHost = window.prompt("Endereço do servidor", m.config.serverHost);
+    if (nextHost === null) return;
+    const nextPort = window.prompt("Porta do servidor", String(m.config.serverPort));
+    if (nextPort === null) return;
+    const serverHost = nextHost.trim();
+    const serverPort = Number(nextPort.trim());
+    if (!serverHost || !Number.isInteger(serverPort) || serverPort < 1 || serverPort > 65535) {
+      setErr("Informe um endereço e uma porta válidos.");
+      return;
+    }
+    setErr("");
+    m.updateConfig({ serverHost, serverPort });
+    setSecurelogApiBase(`http://${serverHost}:${serverPort}`);
+  };
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     if (!m.user || !pass) return setErr("Informe usuário e senha.");
-    const serverHost=hostRef.current?.value.trim()??"";
-    const serverPort=Number(portRef.current?.value??"");
+    const serverHost=m.config.serverHost.trim();
+    const serverPort=m.config.serverPort;
     if(!serverHost||!Number.isInteger(serverPort)||serverPort<1||serverPort>65535)return setErr("Informe o endereço e a porta da API.");
     m.updateConfig({serverHost,serverPort});
     setSecurelogApiBase(`http://${serverHost}:${serverPort}`);
@@ -48,7 +61,6 @@ function MLogin() {
     }
     finally { setLoading(false); }
   };
-  const serverInputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
   return (
     <div className="flex min-h-full flex-col justify-center p-6">
       <div className="mb-6 flex justify-center"><Logo size="lg" /></div>
@@ -56,7 +68,7 @@ function MLogin() {
         SecureLog Mobile · versão 1.0.2
       </div>
       <form onSubmit={go} className="space-y-4">
-        <div className="grid grid-cols-[1fr_100px] gap-2"><Field label="Servidor da API"><input ref={hostRef} defaultValue={m.config.serverHost} type="text" inputMode="text" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="192.168.0.10" className={serverInputClass} /></Field><Field label="Porta"><input ref={portRef} defaultValue={m.config.serverPort} type="tel" inputMode="numeric" autoComplete="off" className={serverInputClass} /></Field></div>
+        <div className="rounded-md border border-border bg-muted/30 p-3"><div className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs text-muted-foreground">Servidor da API</p><p className="truncate font-mono text-sm text-foreground">{m.config.serverHost || "Não configurado"}:{m.config.serverPort}</p></div><Button type="button" variant="outline" size="sm" onClick={editServer}>Alterar</Button></div></div>
         <Field label="Usuário"><Input className="h-14 text-lg" value={m.user} onChange={(e) => m.setUser(e.target.value)} /></Field>
         <Field label="Senha"><Input className="h-14 text-lg" type="password" value={pass} onChange={(e) => setPass(e.target.value)} placeholder="••••" /></Field>
         {err && <div className="flex gap-2 rounded-md bg-danger-soft p-3 text-sm text-destructive"><AlertCircle className="h-4 w-4 shrink-0" />{err}</div>}

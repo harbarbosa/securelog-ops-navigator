@@ -42,6 +42,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "securelog_native_collector";
@@ -204,6 +205,10 @@ public class MainActivity extends Activity {
         }
         int code = connection.getResponseCode();
         String cookie = connection.getHeaderField("Set-Cookie");
+        if (cookie == null) {
+            List<String> cookies = connection.getHeaderFields().get("Set-Cookie");
+            if (cookies != null && !cookies.isEmpty()) cookie = cookies.get(0);
+        }
         if (cookie != null) prefs.edit().putString("session_cookie", cookie.split(";", 2)[0]).apply();
         InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
         String responseBody = read(stream);
@@ -311,7 +316,7 @@ public class MainActivity extends Activity {
         locationSpinner = new Spinner(this);
         String[] names = new String[Math.max(operatorLocations.length(), 1)];
         for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
-        if (operatorLocations.length() == 0) names[0] = "Nenhum local disponível";
+        if (operatorLocations.length() == 0) names[0] = "Nenhum local atribuído ao usuário";
         locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
         content.addView(locationSpinner, params(WRAP, dp(58)));
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);

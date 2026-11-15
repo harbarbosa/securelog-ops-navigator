@@ -174,6 +174,7 @@ public class MainActivity extends Activity {
                 saveCachedUser(username, password, role);
                 JSONArray locations = fetchLocations(server, port);
                 cacheLocations(locations);
+                try { cacheDevices(fetchDevices(server, port)); } catch (Exception ignored) { }
                 syncPendingReadings();
                 runOnUiThread(() -> showHome(username, role, true, locations));
             } catch (Exception error) {
@@ -222,6 +223,18 @@ public class MainActivity extends Activity {
         String body = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
         if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + body);
         return new JSONObject(body).optJSONArray("items");
+    }
+
+    private JSONArray fetchDevices(String server, String port) throws Exception {
+        HttpURLConnection connection = open(server, port, "/api/devices?limit=100&offset=0", "GET");
+        int code = connection.getResponseCode();
+        String body = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
+        if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " " + body);
+        return new JSONObject(body).optJSONArray("items");
+    }
+
+    private void cacheDevices(JSONArray devices) {
+        if (devices != null) prefs.edit().putString("devices_json", devices.toString()).apply();
     }
 
     private void sendReading(JSONObject event) throws Exception {

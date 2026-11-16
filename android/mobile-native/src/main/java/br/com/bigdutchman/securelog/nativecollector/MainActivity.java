@@ -29,6 +29,7 @@ import android.widget.ScrollView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -144,6 +145,7 @@ public class MainActivity extends Activity {
 
     private void showLogin() {
         sessionActive = false;
+        qrLoginInProgress = false;
         handler.removeCallbacks(inactivityLogout);
         handler.removeCallbacks(syncLoop);
         content = new LinearLayout(this);
@@ -183,6 +185,7 @@ public class MainActivity extends Activity {
         diagnostic.setOnClickListener(v -> showLogs());
         content.addView(diagnostic, params(WRAP, dp(52)));
         setContentView(scroll(content));
+        handler.postDelayed(this::configureDataWedge, 250);
     }
 
     private void login() {
@@ -217,7 +220,12 @@ public class MainActivity extends Activity {
                 try { cacheDevices(fetchDevices(server, port)); } catch (Exception ignored) { }
                 syncPendingReadings();
                 if (qrLoginInProgress) appendDiagnostic("QR autenticado com sucesso: " + username);
-                runOnUiThread(() -> { qrLoginInProgress = false; showHome(username, role, true, locations); });
+                runOnUiThread(() -> {
+                    qrLoginInProgress = false;
+                    showHome(username, role, true, locations);
+                    appendDiagnostic("Tela pós-login aberta para " + username);
+                    Toast.makeText(MainActivity.this, "Login realizado. Escolha o local.", Toast.LENGTH_SHORT).show();
+                });
             } catch (Exception error) {
                 if (qrLoginInProgress) {
                     String message = error.getMessage() == null ? "erro desconhecido" : error.getMessage();

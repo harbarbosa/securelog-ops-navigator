@@ -91,6 +91,7 @@ public class MainActivity extends Activity {
             appendDiagnostic("DataWedge evento recebido: " + (action == null ? "sem ação" : action) + ", dados=" + (code == null ? "ausentes" : code.length() + " caracteres"));
             if (code != null && !code.trim().isEmpty()) {
                 String scanned = code.trim();
+                appendDiagnostic("Leitura encaminhada: sessão=" + sessionActive + ", tamanho=" + scanned.length());
                 if (sessionActive && codeInput != null) {
                     codeInput.setText(scanned);
                     if (operatorConnection != null) recordReading(operatorConnection);
@@ -215,9 +216,14 @@ public class MainActivity extends Activity {
                 cacheLocations(locations);
                 try { cacheDevices(fetchDevices(server, port)); } catch (Exception ignored) { }
                 syncPendingReadings();
+                if (qrLoginInProgress) appendDiagnostic("QR autenticado com sucesso: " + username);
                 runOnUiThread(() -> { qrLoginInProgress = false; showHome(username, role, true, locations); });
             } catch (Exception error) {
                 if (qrLoginInProgress) {
+                    String message = error.getMessage() == null ? "erro desconhecido" : error.getMessage();
+                    appendDiagnostic(message.contains("HTTP 401")
+                            ? "QR recusado pelo servidor: credenciais inválidas"
+                            : "QR falhou na autenticação: " + message.split(" ", 2)[0]);
                     runOnUiThread(() -> {
                         qrLoginInProgress = false;
                         status.setText(error.getMessage() != null && error.getMessage().contains("HTTP 401") ? "QR Code recusado: usuário ou senha inválidos." : "QR Code lido, mas não foi possível autenticar no servidor.");
@@ -237,24 +243,30 @@ public class MainActivity extends Activity {
     }
 
     private void loginFromQr(String scanned) {
+        appendDiagnostic("QR recebido para autenticação: " + scanned.length() + " caracteres");
         if (!scanned.startsWith("!")) {
+            appendDiagnostic("QR rejeitado: formato sem prefixo !");
             if (status != null) status.setText("QR Code inválido. Use o formato !usuario!senha.");
             return;
         }
         int separator = scanned.indexOf('!', 1);
         if (separator <= 1 || separator >= scanned.length() - 1) {
+            appendDiagnostic("QR rejeitado: separadores inválidos");
             if (status != null) status.setText("QR Code inválido. Use o formato !usuario!senha.");
             return;
         }
         String username = scanned.substring(1, separator).trim();
         String password = scanned.substring(separator + 1).trim();
         if (username.isEmpty() || password.isEmpty()) {
+            appendDiagnostic("QR rejeitado: credenciais incompletas");
             if (status != null) status.setText("QR Code sem credenciais completas.");
             return;
         }
+        appendDiagnostic("QR interpretado: usuário=" + username + ", senha=" + password.length() + " caracteres");
         userInput.setText(username);
         passwordInput.setText(password);
         qrLoginInProgress = true;
+        appendDiagnostic("QR iniciando autenticação no servidor");
         if (status != null) {
             status.setText("QR Code lido. Autenticando operador...");
             status.setTextColor(SUCCESS);

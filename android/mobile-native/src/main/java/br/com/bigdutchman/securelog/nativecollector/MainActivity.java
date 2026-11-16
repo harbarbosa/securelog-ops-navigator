@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Build;
+import android.util.Log;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.MotionEvent;
@@ -50,6 +51,7 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "securelog_native_collector";
+    private static final String LOG_TAG = "SecureLogDataWedge";
     private static final int ORANGE = Color.rgb(235, 118, 0);
     private static final int BG = Color.rgb(247, 248, 250);
     private static final int INK = Color.rgb(31, 38, 46);
@@ -79,7 +81,14 @@ public class MainActivity extends Activity {
     };
     private final BroadcastReceiver zebraReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
             String code = intent.getStringExtra("com.symbol.datawedge.data_string");
+            if ("com.symbol.datawedge.scanner_status".equals(action)) {
+                String scannerStatus = intent.getStringExtra("com.symbol.datawedge.scanner_status");
+                appendDiagnostic("DataWedge status: " + (scannerStatus == null ? "sem status" : scannerStatus));
+                return;
+            }
+            appendDiagnostic("DataWedge evento recebido: " + (action == null ? "sem ação" : action) + ", dados=" + (code == null ? "ausentes" : code.length() + " caracteres"));
             if (code != null && !code.trim().isEmpty()) {
                 String scanned = code.trim();
                 if (sessionActive && codeInput != null) {
@@ -92,6 +101,7 @@ public class MainActivity extends Activity {
         }
     };
     private TextView status;
+    private TextView scannerDiagnostic;
     private LinearLayout content;
     private SharedPreferences prefs;
     private Spinner locationSpinner;
@@ -117,6 +127,7 @@ public class MainActivity extends Activity {
         if (!receiverRegistered) {
             IntentFilter filter = new IntentFilter();
             filter.addAction("com.symbol.datawedge.data_string");
+            filter.addAction("com.symbol.datawedge.scanner_status");
             filter.addCategory(Intent.CATEGORY_DEFAULT);
             if (Build.VERSION.SDK_INT >= 33) registerReceiver(zebraReceiver, filter, Context.RECEIVER_EXPORTED);
             else registerReceiver(zebraReceiver, filter);
@@ -164,6 +175,8 @@ public class MainActivity extends Activity {
         String provisioningStatus = prefs.getString("provision_status", "");
         if (!provisioningStatus.isEmpty()) status.setText(provisioningStatus);
         content.addView(status, params(WRAP, dp(70)));
+        scannerDiagnostic = text("Scanner: " + prefs.getString("last_scan_debug", "aguardando leitura"), 12, MUTED);
+        content.addView(scannerDiagnostic, params(WRAP, dp(42)));
         setContentView(scroll(content));
     }
 
@@ -566,6 +579,13 @@ public class MainActivity extends Activity {
         String updated = (logs.isEmpty() ? line : logs + "\n" + line);
         if (updated.length() > 12000) updated = updated.substring(updated.length() - 12000);
         prefs.edit().putString("local_logs", updated).apply();
+    }
+
+    private void appendDiagnostic(String message) {
+        Log.i(LOG_TAG, message);
+        prefs.edit().putString("last_scan_debug", message).apply();
+        appendLog(message);
+        if (scannerDiagnostic != null) runOnUiThread(() -> scannerDiagnostic.setText("Scanner: " + message));
     }
 
     private void requestConfigAccess() {

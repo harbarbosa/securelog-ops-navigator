@@ -180,6 +180,7 @@ public class MainActivity extends Activity {
         diagnostic.setOnClickListener(v -> showLogs());
         content.addView(diagnostic, params(WRAP, dp(52)));
         setContentView(scroll(content));
+        activateDataWedgeProfile();
         handler.postDelayed(this::configureDataWedge, 250);
     }
 
@@ -523,6 +524,9 @@ public class MainActivity extends Activity {
         Intent intent = new Intent("com.symbol.datawedge.api.ACTION");
         intent.putExtra("com.symbol.datawedge.api.SWITCH_TO_PROFILE", "SecureLog");
         sendBroadcast(intent);
+        Intent scanner = new Intent("com.symbol.datawedge.api.ACTION");
+        scanner.putExtra("com.symbol.datawedge.api.ENABLE_SCANNER", true);
+        sendBroadcast(scanner);
     }
 
     private void configureDataWedgeProfile() {

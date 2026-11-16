@@ -126,16 +126,13 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         applyKioskMode();
-        if (!receiverRegistered) {
-            IntentFilter filter = new IntentFilter();
-            filter.addAction("com.symbol.datawedge.data_string");
-            filter.addAction("com.symbol.datawedge.scanner_status");
-            filter.addCategory(Intent.CATEGORY_DEFAULT);
-            if (Build.VERSION.SDK_INT >= 33) registerReceiver(zebraReceiver, filter, Context.RECEIVER_EXPORTED);
-            else registerReceiver(zebraReceiver, filter);
-            receiverRegistered = true;
-        }
         configureDataWedge();
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleScannerIntent(intent);
     }
 
     private void showLogin() {
@@ -182,6 +179,27 @@ public class MainActivity extends Activity {
         setContentView(scroll(content));
         activateDataWedgeProfile();
         handler.postDelayed(this::configureDataWedge, 250);
+    }
+
+    private void handleScannerIntent(Intent intent) {
+        String action = intent.getAction();
+        String code = intent.getStringExtra("com.symbol.datawedge.data_string");
+        if ("com.symbol.datawedge.scanner_status".equals(action)) {
+            String scannerStatus = intent.getStringExtra("com.symbol.datawedge.scanner_status");
+            appendDiagnostic("DataWedge status: " + (scannerStatus == null ? "sem status" : scannerStatus));
+            return;
+        }
+        appendDiagnostic("DataWedge evento recebido: " + (action == null ? "sem ação" : action) + ", dados=" + (code == null ? "ausentes" : code.length() + " caracteres"));
+        if (code != null && !code.trim().isEmpty()) {
+            String scanned = code.trim();
+            appendDiagnostic("Leitura encaminhada: sessão=" + sessionActive + ", tamanho=" + scanned.length());
+            if (sessionActive && codeInput != null) {
+                codeInput.setText(scanned);
+                if (operatorConnection != null) recordReading(operatorConnection);
+            } else if (!sessionActive && userInput != null && passwordInput != null) {
+                loginFromQr(scanned);
+            }
+        }
     }
 
     private void login() {

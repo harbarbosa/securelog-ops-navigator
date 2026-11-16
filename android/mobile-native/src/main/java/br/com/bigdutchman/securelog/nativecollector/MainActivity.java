@@ -77,9 +77,14 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver zebraReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             String code = intent.getStringExtra("com.symbol.datawedge.data_string");
-            if (code != null && !code.trim().isEmpty() && sessionActive && codeInput != null) {
-                codeInput.setText(code.trim());
-                if (operatorConnection != null) recordReading(operatorConnection);
+            if (code != null && !code.trim().isEmpty()) {
+                String scanned = code.trim();
+                if (sessionActive && codeInput != null) {
+                    codeInput.setText(scanned);
+                    if (operatorConnection != null) recordReading(operatorConnection);
+                } else if (!sessionActive && userInput != null && passwordInput != null) {
+                    loginFromQr(scanned);
+                }
             }
         }
     };
@@ -199,6 +204,31 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void loginFromQr(String scanned) {
+        if (!scanned.startsWith("!")) {
+            if (status != null) status.setText("QR Code inválido. Use o formato !usuario!senha.");
+            return;
+        }
+        int separator = scanned.indexOf('!', 1);
+        if (separator <= 1 || separator >= scanned.length() - 1) {
+            if (status != null) status.setText("QR Code inválido. Use o formato !usuario!senha.");
+            return;
+        }
+        String username = scanned.substring(1, separator).trim();
+        String password = scanned.substring(separator + 1).trim();
+        if (username.isEmpty() || password.isEmpty()) {
+            if (status != null) status.setText("QR Code sem credenciais completas.");
+            return;
+        }
+        userInput.setText(username);
+        passwordInput.setText(password);
+        if (status != null) {
+            status.setText("QR Code lido. Autenticando operador...");
+            status.setTextColor(SUCCESS);
+        }
+        login();
     }
 
     private JSONObject requestLogin(String server, String port, String username, String password) throws Exception {

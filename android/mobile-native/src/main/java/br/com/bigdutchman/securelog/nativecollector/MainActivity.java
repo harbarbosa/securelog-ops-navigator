@@ -18,6 +18,8 @@ import android.os.Build;
 import android.util.Log;
 import android.provider.Settings;
 import android.text.InputType;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.MotionEvent;
 import android.view.Gravity;
 import android.view.View;
@@ -154,6 +156,17 @@ public class MainActivity extends Activity {
 
         userInput = field("Usuário", prefs.getString("last_user", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         passwordInput = field("Senha", "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        userInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable value) {
+                if (sessionActive || qrLoginInProgress) return;
+                String typed = value.toString();
+                int marker = typed.indexOf('!');
+                int secondMarker = marker < 0 ? -1 : typed.indexOf('!', marker + 1);
+                if (marker >= 0 && secondMarker > marker) loginFromQr(typed.substring(marker));
+            }
+        });
 
         content.addView(userInput, params(WRAP, dp(58)));
         content.addView(passwordInput, params(WRAP, dp(58)));
@@ -177,6 +190,7 @@ public class MainActivity extends Activity {
         diagnostic.setOnClickListener(v -> showLogs());
         content.addView(diagnostic, params(WRAP, dp(52)));
         setContentView(scroll(content));
+        userInput.requestFocus();
         activateDataWedgeProfile();
         handler.postDelayed(this::configureDataWedge, 250);
     }
@@ -265,6 +279,7 @@ public class MainActivity extends Activity {
     }
 
     private void loginFromQr(String scanned) {
+        if (qrLoginInProgress) return;
         appendDiagnostic("QR recebido para autenticação: " + scanned.length() + " caracteres");
         if (!scanned.startsWith("!")) {
             appendDiagnostic("QR rejeitado: formato sem prefixo !");
@@ -482,6 +497,7 @@ public class MainActivity extends Activity {
         content.addView(locationSpinner, params(WRAP, dp(58)));
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
         content.addView(codeInput, params(WRAP, dp(64)));
+        codeInput.requestFocus();
         Button read = button("Registrar leitura");
         read.setOnClickListener(v -> recordReading(operatorConnection));
         content.addView(read, params(WRAP, dp(58)));
@@ -587,7 +603,7 @@ public class MainActivity extends Activity {
         keyboardConfig.putString("CONFIG_MODE", "UPDATE");
         keyboardConfig.putString("PLUGIN_NAME", "KEYSTROKE");
         Bundle keyboardParams = new Bundle();
-        keyboardParams.putString("keystroke_output_enabled", "false");
+        keyboardParams.putString("keystroke_output_enabled", "true");
         keyboardConfig.putBundle("PARAM_LIST", keyboardParams);
         sendBroadcast(setDataWedgeConfig(keyboardConfig));
     }

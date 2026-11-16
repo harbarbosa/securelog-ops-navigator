@@ -70,6 +70,7 @@ public class MainActivity extends Activity {
     private TextView configStatus;
     private TextView operatorConnection;
     private boolean sessionActive;
+    private boolean qrLoginInProgress;
     private boolean receiverRegistered;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable inactivityLogout = () -> { if (sessionActive) showLogin(); };
@@ -172,11 +173,13 @@ public class MainActivity extends Activity {
         String username = userInput.getText().toString().trim();
         String password = passwordInput.getText().toString();
         if (server.isEmpty() || port.isEmpty()) {
+            qrLoginInProgress = false;
             status.setText("Configure o servidor antes de entrar.");
             status.setTextColor(Color.rgb(180, 100, 20));
             return;
         }
         if (username.isEmpty() || password.isEmpty()) {
+            qrLoginInProgress = false;
             status.setText("Preencha usuário e senha.");
             status.setTextColor(Color.rgb(180, 50, 50));
             return;
@@ -195,9 +198,15 @@ public class MainActivity extends Activity {
                 cacheLocations(locations);
                 try { cacheDevices(fetchDevices(server, port)); } catch (Exception ignored) { }
                 syncPendingReadings();
-                runOnUiThread(() -> showHome(username, role, true, locations));
+                runOnUiThread(() -> { qrLoginInProgress = false; showHome(username, role, true, locations); });
             } catch (Exception error) {
-                if (matchesCachedUser(username, password)) {
+                if (qrLoginInProgress) {
+                    runOnUiThread(() -> {
+                        qrLoginInProgress = false;
+                        status.setText(error.getMessage() != null && error.getMessage().contains("HTTP 401") ? "QR Code recusado: usuário ou senha inválidos." : "QR Code lido, mas não foi possível autenticar no servidor.");
+                        status.setTextColor(ERROR);
+                    });
+                } else if (matchesCachedUser(username, password)) {
                     JSONArray locations = readCachedLocations();
                     runOnUiThread(() -> showHome(username, prefs.getString("role", "operator"), false, locations));
                 } else {
@@ -228,6 +237,7 @@ public class MainActivity extends Activity {
         }
         userInput.setText(username);
         passwordInput.setText(password);
+        qrLoginInProgress = true;
         if (status != null) {
             status.setText("QR Code lido. Autenticando operador...");
             status.setTextColor(SUCCESS);

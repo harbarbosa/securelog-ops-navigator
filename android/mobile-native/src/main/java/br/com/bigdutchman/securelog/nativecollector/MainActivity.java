@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -47,6 +48,14 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String PREFS = "securelog_native_collector";
+    private static final int ORANGE = Color.rgb(235, 118, 0);
+    private static final int BG = Color.rgb(247, 248, 250);
+    private static final int INK = Color.rgb(31, 38, 46);
+    private static final int MUTED = Color.rgb(68, 68, 68);
+    private static final int SUCCESS = Color.rgb(35, 130, 75);
+    private static final int WARNING = Color.rgb(180, 100, 20);
+    private static final int ERROR = Color.rgb(180, 50, 50);
+    private static final int WHITE = Color.WHITE;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private EditText serverInput;
     private EditText portInput;
@@ -117,15 +126,13 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(syncLoop);
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(36), dp(24), dp(24));
-        content.setBackgroundColor(Color.rgb(247, 248, 250));
-
-        TextView brand = text("SecureLog", 30, Color.rgb(235, 118, 0));
-        brand.setTypeface(null, 1);
-        content.addView(brand, params(WRAP, dp(48)));
-        TextView title = text("Acesso do coletor", 22, Color.rgb(31, 38, 46));
+        content.setPadding(dp(20), dp(20), dp(20), dp(20));
+        content.setBackgroundColor(BG);
+        content.addView(header(), params(WRAP, dp(62)));
+        TextView title = text("Acesso do coletor", 24, INK);
+        title.setTypeface(null, 1);
         content.addView(title, params(WRAP, dp(42)));
-        TextView subtitle = text("Entre com sua conta para iniciar as leituras.", 15, Color.DKGRAY);
+        TextView subtitle = text("Entre com sua conta para iniciar as leituras.", 15, MUTED);
         content.addView(subtitle, params(WRAP, dp(36)));
 
         userInput = field("Usuário", prefs.getString("last_user", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
@@ -138,7 +145,7 @@ public class MainActivity extends Activity {
         login.setOnClickListener(v -> login());
         content.addView(login, params(WRAP, dp(56)));
 
-        Button settings = button("Configurações");
+        Button settings = secondaryButton("Configurações");
         settings.setOnClickListener(v -> requestConfigAccess());
         content.addView(settings, params(WRAP, dp(56)));
 
@@ -301,21 +308,19 @@ public class MainActivity extends Activity {
         }
         activateSession();
         content.removeAllViews();
-        TextView title = text("SecureLog Coletor", 26, Color.rgb(235, 118, 0));
-        title.setTypeface(null, 1);
-        content.addView(title, params(WRAP, dp(50)));
-        content.addView(text(online ? "Conectado ao servidor" : "Modo offline", 16, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(42)));
-        content.addView(text("Usuário: " + username + "\nPerfil: " + role, 17, Color.DKGRAY), params(WRAP, dp(72)));
-        content.addView(text("Administrador autenticado. Use as configurações para revisar o coletor.", 16, Color.DKGRAY), params(WRAP, dp(90)));
+        content.addView(header("Área Administrativa"), params(WRAP, dp(62)));
+        content.addView(statusBadge(online ? "Conectado" : "Sem conexão", online ? SUCCESS : WARNING), params(WRAP, dp(42)));
+        content.addView(text("Usuário: " + username + "\nPerfil: " + role, 17, INK), params(WRAP, dp(72)));
+        content.addView(text("Administrador autenticado. Use as configurações para revisar o coletor.", 16, MUTED), params(WRAP, dp(74)));
         if ("admin".equalsIgnoreCase(role)) {
-            Button settings = button("Configurações");
+            Button settings = secondaryButton("Configurações");
             settings.setOnClickListener(v -> showConfig());
             content.addView(settings, params(WRAP, dp(56)));
-            Button logs = button("Logs do coletor");
+            Button logs = secondaryButton("Logs do coletor");
             logs.setOnClickListener(v -> showLogs());
             content.addView(logs, params(WRAP, dp(56)));
         }
-        Button logout = button("Sair");
+        Button logout = secondaryButton("Sair");
         logout.setOnClickListener(v -> showLogin());
         content.addView(logout, params(WRAP, dp(56)));
     }
@@ -323,9 +328,9 @@ public class MainActivity extends Activity {
     private void showLocationSelection(String username, boolean online, JSONArray locations) {
         operatorLocations = locations == null ? new JSONArray() : locations;
         content.removeAllViews();
-        content.addView(text("Escolha o local da leitura", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(58)));
-        content.addView(text("Usuário: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
-        content.addView(text(online ? "Catálogo atualizado do servidor" : "Sem rede: usando locais salvos no coletor", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(48)));
+        content.addView(header("Seleção do Local"), params(WRAP, dp(62)));
+        content.addView(text("Operador: " + username, 16, INK), params(WRAP, dp(38)));
+        content.addView(statusBadge(online ? "Conectado · catálogo atualizado" : "Sem rede: usando locais salvos no coletor", online ? SUCCESS : WARNING), params(WRAP, dp(48)));
         locationSpinner = new Spinner(this);
         String[] names = new String[Math.max(operatorLocations.length() + 1, 1)];
         names[0] = operatorLocations.length() == 0 ? "Nenhum local cadastrado" : "Selecione um local";
@@ -347,10 +352,10 @@ public class MainActivity extends Activity {
             showOperator(username, online, operatorLocations);
         });
         content.addView(continueButton, params(WRAP, dp(58)));
-        TextView message = text(operatorLocations.length() == 0 ? "Nenhum local ativo foi disponibilizado pelo sistema." : "O local poderá ser alterado durante o trabalho.", 14, Color.DKGRAY);
+        TextView message = text(operatorLocations.length() == 0 ? "Nenhum local ativo foi disponibilizado pelo sistema." : "O local poderá ser alterado durante o trabalho.", 14, MUTED);
         message.setPadding(0, dp(12), 0, 0);
         content.addView(message, params(WRAP, dp(70)));
-        Button logout = button("Sair");
+        Button logout = secondaryButton("Sair");
         logout.setOnClickListener(v -> showLogin());
         content.addView(logout, params(WRAP, dp(56)));
     }
@@ -359,9 +364,9 @@ public class MainActivity extends Activity {
         activateSession();
         operatorLocations = locations == null ? new JSONArray() : locations;
         content.removeAllViews();
-        content.addView(text("Leituras SecureLog", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(52)));
-        content.addView(text("Operador: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
-        operatorConnection = text(online ? "Conectado ao servidor" : "Modo offline", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20));
+        content.addView(header("Leituras"), params(WRAP, dp(62)));
+        content.addView(text("Operador: " + username, 16, INK), params(WRAP, dp(38)));
+        operatorConnection = statusBadge(online ? "Conectado" : "Sem conexão", online ? SUCCESS : WARNING);
         content.addView(operatorConnection, params(WRAP, dp(42)));
         content.addView(text("Local da leitura", 14, Color.DKGRAY), params(WRAP, dp(30)));
         locationSpinner = new Spinner(this);
@@ -385,8 +390,8 @@ public class MainActivity extends Activity {
         Button read = button("Registrar leitura");
         read.setOnClickListener(v -> recordReading(operatorConnection));
         content.addView(read, params(WRAP, dp(58)));
-        content.addView(text("As leituras sem conexão ficam pendentes neste coletor e serão sincronizadas na próxima etapa.", 14, Color.DKGRAY), params(WRAP, dp(70)));
-        Button logout = button("Sair");
+        content.addView(text("As leituras sem conexão ficam pendentes neste coletor e serão sincronizadas quando a conexão retornar.", 14, MUTED), params(WRAP, dp(70)));
+        Button logout = secondaryButton("Sair");
         logout.setOnClickListener(v -> showLogin());
         content.addView(logout, params(WRAP, dp(56)));
     }
@@ -486,14 +491,15 @@ public class MainActivity extends Activity {
     private void showConfig() {
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(36), dp(24), dp(24));
-        content.setBackgroundColor(Color.rgb(247, 248, 250));
-        content.addView(text("Configurações do coletor", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(58)));
-        content.addView(text("Essas informações ficam armazenadas somente neste coletor.", 14, Color.DKGRAY), params(WRAP, dp(48)));
+        content.setPadding(dp(20), dp(20), dp(20), dp(24));
+        content.setBackgroundColor(BG);
+        content.addView(header("Configurações"), params(WRAP, dp(62)));
+        content.addView(text("Configuração da API", 20, INK), params(WRAP, dp(38)));
+        content.addView(text("Essas informações ficam armazenadas somente neste coletor.", 14, MUTED), params(WRAP, dp(42)));
         configServerInput = field("Endereço do servidor", prefs.getString("server", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         configPortInput = field("Porta da API", prefs.getString("port", "3333"), InputType.TYPE_CLASS_NUMBER);
         configDeviceInput = field("Nome do coletor", prefs.getString("device_name", ""), InputType.TYPE_CLASS_TEXT);
-        configTokenInput = field("Token do coletor", prefs.getString("device_token", ""), InputType.TYPE_CLASS_TEXT);
+        configTokenInput = field("Token do coletor (protegido)", prefs.getString("device_token", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         content.addView(configServerInput, params(WRAP, dp(58)));
         content.addView(configPortInput, params(WRAP, dp(58)));
         content.addView(configDeviceInput, params(WRAP, dp(58)));
@@ -502,7 +508,7 @@ public class MainActivity extends Activity {
         Button save = button("Salvar configurações");
         save.setOnClickListener(v -> saveConfig());
         content.addView(save, params(WRAP, dp(56)));
-        Button back = button("Voltar para o login");
+        Button back = secondaryButton("Voltar para o login");
         back.setOnClickListener(v -> showLogin());
         content.addView(back, params(WRAP, dp(56)));
         configStatus = text("", 14, Color.DKGRAY);
@@ -635,9 +641,12 @@ public class MainActivity extends Activity {
         field.setHint(hint);
         field.setText(value);
         field.setTextSize(17);
+        field.setTextColor(INK);
+        field.setHintTextColor(Color.rgb(120, 130, 140));
         field.setSingleLine(true);
         field.setInputType(inputType);
         field.setPadding(dp(12), 0, dp(12), 0);
+        field.setBackground(roundRect(WHITE, Color.rgb(190, 198, 207), 1, 10));
         return field;
     }
 
@@ -645,7 +654,61 @@ public class MainActivity extends Activity {
         Button button = new Button(this);
         button.setText(label);
         button.setTextSize(16);
+        button.setTextColor(WHITE);
+        button.setAllCaps(false);
+        button.setMinHeight(0);
+        button.setPadding(dp(12), 0, dp(12), 0);
+        button.setBackground(roundRect(ORANGE, ORANGE, 0, 10));
         return button;
+    }
+
+    private Button secondaryButton(String label) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextSize(16);
+        button.setTextColor(INK);
+        button.setAllCaps(false);
+        button.setMinHeight(0);
+        button.setPadding(dp(12), 0, dp(12), 0);
+        button.setBackground(roundRect(WHITE, Color.rgb(165, 175, 185), 1, 10));
+        return button;
+    }
+
+    private View header() { return header("SecureLog"); }
+
+    private View header(String title) {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setPadding(dp(16), 0, dp(16), 0);
+        bar.setBackground(roundRect(ORANGE, ORANGE, 0, 0));
+        TextView brand = text("Big Dutchman", 18, WHITE);
+        brand.setTypeface(null, 1);
+        bar.addView(brand, new LinearLayout.LayoutParams(0, WRAP, 1));
+        TextView divider = text("|", 18, Color.rgb(255, 220, 185));
+        bar.addView(divider, params(dp(20), WRAP));
+        TextView product = text(title, 17, WHITE);
+        product.setTypeface(null, 1);
+        bar.addView(product, new LinearLayout.LayoutParams(0, WRAP, 1));
+        return bar;
+    }
+
+    private TextView statusBadge(String value, int color) {
+        TextView badge = text(value, 14, color);
+        badge.setTypeface(null, 1);
+        badge.setGravity(Gravity.CENTER_VERTICAL);
+        badge.setPadding(dp(12), 0, dp(12), 0);
+        int fill = color == SUCCESS ? Color.rgb(225, 243, 231) : color == ERROR ? Color.rgb(250, 230, 230) : Color.rgb(255, 235, 204);
+        badge.setBackground(roundRect(fill, fill, 0, 8));
+        return badge;
+    }
+
+    private GradientDrawable roundRect(int fill, int stroke, int strokeWidth, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fill);
+        drawable.setCornerRadius(dp(radius));
+        if (strokeWidth > 0) drawable.setStroke(dp(strokeWidth), stroke);
+        return drawable;
     }
 
     private TextView text(String value, int size, int color) {

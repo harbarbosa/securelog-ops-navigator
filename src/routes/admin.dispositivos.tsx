@@ -15,7 +15,6 @@ function Dispositivos(){
  const [rows,setRows]=useState<Device[]>([]);
  const [locations,setLocations]=useState<Location[]>([]);
  const [edit,setEdit]=useState<(typeof blank&{id?:string})|null>(null);
- const [associate,setAssociate]=useState<Device|null>(null);
  const [loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);try{const [d,l]=await Promise.all([securelog.list<Device>("devices",100),securelog.list<Location>("locations",100)]);setRows(d.items);setLocations(l.items);}catch(e){toast.error(e instanceof Error?e.message:"Falha ao carregar dispositivos");}finally{setLoading(false);}};
  useEffect(()=>{void load();},[]);
@@ -24,22 +23,18 @@ function Dispositivos(){
   try{if(edit.id)await securelog.update("devices",edit.id,data);else await securelog.create("devices",data);toast.success("Dispositivo salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar dispositivo");}
  };
  const toggle=async(r:Device)=>{try{await securelog.update("devices",r.id,{active:!r.active});await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao atualizar");}};
- const link=async()=>{if(!associate)return;try{await securelog.associateDevice(associate.id,null);toast.success("Leitor associado sem local padrão; token enviado para pareamento");setAssociate(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao associar leitor");}};
+ const link=async(r:Device)=>{try{await securelog.associateDevice(r.id,null);toast.success("Leitor ativado; token enviado para pareamento");await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao ativar leitor");}};
  const remove=async(r:Device)=>{if(!window.confirm(`Excluir o leitor “${r.name}”? Essa ação não pode ser desfeita.`))return;try{await securelog.delete("devices",r.id);toast.success("Leitor excluído");await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao excluir leitor");}};
  return <>
   <PageHeader title="Dispositivos e leitores" crumbs={["Configurações","Dispositivos"]} actions={<Button onClick={()=>setEdit({...blank})}><Plus className="h-4 w-4"/>Novo leitor</Button>}/>
   <Card><Table head={<><Th>Nome do leitor</Th><Th>Número de série</Th><Th>Local</Th><Th>Última comunicação</Th><Th>Status cadastral</Th><Th>Ações</Th></>}>
-  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td className="font-mono text-xs">{r.serial_number}</Td><Td>{locations.find(l=>l.id===r.location_id)?.name??"Sem local padrão"}</Td><Td>{r.last_seen_at?new Date(r.last_seen_at).toLocaleString("pt-BR"):"Nunca"}</Td><Td>{r.active&&r.has_token?(r.location_id?"Associado":"Ativo sem local"):(r.active?"Aguardando token":"Pendente")}</Td><Td>{(!r.active||!r.has_token)&&<Button size="sm" variant="outline" aria-label="Associar e ativar" onClick={()=>setAssociate({...r})}><Link2 className="h-4 w-4 text-brand"/>Associar e ativar</Button>}<Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,serial_number:r.serial_number,location_id:r.location_id??"",active:r.active})}><Pencil className="h-4 w-4"/></Button>{r.active&&r.has_token&&<Button size="icon" variant="ghost" aria-label="Desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button>}<Button size="icon" variant="ghost" aria-label="Excluir" onClick={()=>void remove(r)}><Trash2 className="h-4 w-4 text-destructive"/></Button></Td></tr>)}
+  {rows.map(r=><tr key={r.id}><Td className="font-medium">{r.name}</Td><Td className="font-mono text-xs">{r.serial_number}</Td><Td>{locations.find(l=>l.id===r.location_id)?.name??"Sem local padrão"}</Td><Td>{r.last_seen_at?new Date(r.last_seen_at).toLocaleString("pt-BR"):"Nunca"}</Td><Td>{r.active&&r.has_token?"Ativo":(r.active?"Aguardando token":"Pendente")}</Td><Td>{(!r.active||!r.has_token)&&<Button size="sm" variant="outline" aria-label="Associar e ativar" onClick={()=>void link(r)}><Link2 className="h-4 w-4 text-brand"/>Associar e ativar</Button>}<Button size="icon" variant="ghost" aria-label="Editar" onClick={()=>setEdit({id:r.id,name:r.name,serial_number:r.serial_number,location_id:r.location_id??"",active:r.active})}><Pencil className="h-4 w-4"/></Button>{r.active&&r.has_token&&<Button size="icon" variant="ghost" aria-label="Desativar" onClick={()=>void toggle(r)}><Power className="h-4 w-4"/></Button>}<Button size="icon" variant="ghost" aria-label="Excluir" onClick={()=>void remove(r)}><Trash2 className="h-4 w-4 text-destructive"/></Button></Td></tr>)}
   </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&!rows.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum leitor cadastrado.</p>}</Card>
   {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar leitor":"Novo leitor"} onSave={()=>void save()}>
   <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>
   <Field label="Número de série"><Input value={edit.serial_number} onChange={e=>setEdit({...edit,serial_number:e.target.value})}/></Field>
   <Field label="Local permitido"><select className="w-full rounded-md border bg-background p-2" value={edit.location_id} onChange={e=>setEdit({...edit,location_id:e.target.value})}><option value="">Nenhum</option>{locations.filter(l=>l.active||l.id===edit.location_id).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></Field>
   <p className="text-xs text-muted-foreground sm:col-span-2">Comunicação e sincronização com o Zebra serão habilitadas em uma próxima etapa.</p>
-  </FormDialog>}
-  {associate&&<FormDialog open onOpenChange={()=>setAssociate(null)} title={`Associar leitor: ${associate.name}`} onSave={()=>void link()}>
-  <p className="text-sm text-muted-foreground">Este leitor será associado sem local padrão.</p>
-  <p className="text-xs text-muted-foreground sm:col-span-2">O operador escolherá o local no login/início da operação e poderá mudar de local durante o trabalho. Ao associar, o servidor ativa o leitor e libera um token temporário.</p>
   </FormDialog>}
  </>;
 }

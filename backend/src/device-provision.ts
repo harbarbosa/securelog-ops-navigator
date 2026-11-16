@@ -13,7 +13,7 @@ export async function registerDeviceProvision(app:FastifyInstance){
   if(existing.rowCount){
    const device=existing.rows[0];
    await pool.query('UPDATE devices SET name=$1,last_seen_at=now() WHERE id=$2',[body.name,device.id]);
-   if(device.has_token&&device.active&&device.location_id)return {device_id:device.id,status:'associated'};
+   if(device.has_token&&device.active)return {device_id:device.id,status:'associated'};
    const pairingCode=device.pairing_code??randomBytes(16).toString('hex');
    await pool.query('UPDATE devices SET active=false,pairing_code=$1,last_seen_at=now() WHERE id=$2',[pairingCode,device.id]);
    return {device_id:device.id,status:'pending',pairing_code:pairingCode};
@@ -29,7 +29,7 @@ export async function registerDeviceProvision(app:FastifyInstance){
   const result=await pool.query<{token_ciphertext:string|null;location_id:string|null}>('SELECT dc.token_ciphertext,d.location_id FROM devices d LEFT JOIN device_credentials dc ON dc.device_id=d.id WHERE d.id=$1 AND d.active=true AND d.pairing_code=$2',[id,code]);
   const row=result.rows[0];
   if(!row)return reply.code(404).send({status:'pending'});
-  if(!row.token_ciphertext||!row.location_id)return {status:'pending'};
+  if(!row.token_ciphertext)return {status:'pending'};
   const token=decryptSecret(row.token_ciphertext);
   await pool.query('UPDATE devices SET pairing_code=NULL,paired_at=now() WHERE id=$1',[id]);
   await pool.query('UPDATE device_credentials SET token_ciphertext=NULL WHERE device_id=$1',[id]);

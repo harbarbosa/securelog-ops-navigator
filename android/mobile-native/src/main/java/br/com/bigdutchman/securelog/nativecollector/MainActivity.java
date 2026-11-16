@@ -540,7 +540,10 @@ public class MainActivity extends Activity {
         JSONObject result = new JSONObject(response);
         prefs.edit().putString("device_id", result.optString("device_id", ""))
                 .putString("pairing_code", result.optString("pairing_code", "")).apply();
-        if ("associated".equals(result.optString("status"))) prefs.edit().putString("device_token", prefs.getString("device_token", "")).apply();
+        if ("associated".equals(result.optString("status")) && result.has("token")) {
+            prefs.edit().putString("device_token", result.optString("token", "")).remove("pairing_code").apply();
+            prefs.edit().putString("provision_status", "Conexão bem-sucedida. Coletor associado e autorizado.").apply();
+        }
         return result;
     }
 

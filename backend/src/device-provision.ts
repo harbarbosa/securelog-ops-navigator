@@ -9,11 +9,11 @@ import {z} from 'zod';
 export async function registerDeviceProvision(app:FastifyInstance){
  app.post('/api/device/register',{config:{rateLimit:{max:20,timeWindow:'1 minute'}}},async(req,reply)=>{
   const body=z.object({name:z.string().trim().min(1).max(160),serial_number:z.string().trim().min(1).max(160)}).parse(req.body);
-  const existing=await pool.query<{id:string;active:boolean;location_id:string|null;pairing_code:string|null;has_token:boolean}>('SELECT d.id,d.active,d.location_id,d.pairing_code,EXISTS (SELECT 1 FROM device_credentials dc WHERE dc.device_id=d.id) AS has_token FROM devices d WHERE d.serial_number=$1',[body.serial_number]);
+  const existing=await pool.query<{id:string;active:boolean;location_id:string|null;pairing_code:string|null;token_ciphertext:string|null;has_token:boolean}>('SELECT d.id,d.active,d.location_id,d.pairing_code,dc.token_ciphertext,EXISTS (SELECT 1 FROM device_credentials dc WHERE dc.device_id=d.id) AS has_token FROM devices d LEFT JOIN device_credentials dc ON dc.device_id=d.id WHERE d.serial_number=$1',[body.serial_number]);
   if(existing.rowCount){
    const device=existing.rows[0];
    await pool.query('UPDATE devices SET name=$1,last_seen_at=now() WHERE id=$2',[body.name,device.id]);
-   if(device.has_token&&device.active)return {device_id:device.id,status:'associated'};
+   if(device.has_token&&device.active&&device.token_ciphertext)return {device_id:device.id,status:'associated',token:decryptSecret(device.token_ciphertext)};
    const pairingCode=device.pairing_code??randomBytes(16).toString('hex');
    await pool.query('UPDATE devices SET active=false,pairing_code=$1,last_seen_at=now() WHERE id=$2',[pairingCode,device.id]);
    return {device_id:device.id,status:'pending',pairing_code:pairingCode};

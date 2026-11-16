@@ -76,8 +76,10 @@ public class MainActivity extends Activity {
     private TextView operatorConnection;
     private boolean sessionActive;
     private boolean qrLoginInProgress;
+    private boolean readingInProgress;
     private boolean receiverRegistered;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable autoReadTask;
     private final Runnable inactivityLogout = () -> { if (sessionActive) showLogin(); };
     private final Runnable syncLoop = new Runnable() {
         @Override public void run() { if (sessionActive) { executor.execute(MainActivity.this::syncPendingReadings); handler.postDelayed(this, 15000); } }
@@ -496,6 +498,17 @@ public class MainActivity extends Activity {
         });
         content.addView(locationSpinner, params(WRAP, dp(58)));
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
+        codeInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (autoReadTask != null) handler.removeCallbacks(autoReadTask);
+            }
+            @Override public void afterTextChanged(Editable value) {
+                if (!sessionActive || value.toString().trim().isEmpty() || readingInProgress) return;
+                autoReadTask = () -> { if (sessionActive && !readingInProgress && !codeInput.getText().toString().trim().isEmpty()) recordReading(operatorConnection); };
+                handler.postDelayed(autoReadTask, 450);
+            }
+        });
         content.addView(codeInput, params(WRAP, dp(64)));
         codeInput.requestFocus();
         Button read = button("Registrar leitura");
@@ -508,12 +521,14 @@ public class MainActivity extends Activity {
     }
 
     private void recordReading(TextView connection) {
+        if (readingInProgress) return;
         String code = codeInput.getText().toString().trim();
         if (code.isEmpty() || operatorLocations.length() == 0 || locationSpinner.getSelectedItemPosition() <= 0) {
             connection.setText("Informe um código e selecione um local.");
             connection.setTextColor(Color.rgb(180, 50, 50));
             return;
         }
+        readingInProgress = true;
         JSONObject location = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition() - 1);
         String locationId = location == null ? "" : location.optString("id", "");
         JSONObject event = new JSONObject();
@@ -532,11 +547,11 @@ public class MainActivity extends Activity {
                 if (prefs.getString("device_token", "").isEmpty()) throw new Exception("Token não configurado");
                 sendReading(event);
                 appendLog("Leitura enviada: " + code);
-                runOnUiThread(() -> { connection.setText("Leitura enviada ao servidor."); connection.setTextColor(Color.rgb(35, 130, 75)); });
+                runOnUiThread(() -> { readingInProgress = false; connection.setText("Leitura enviada ao servidor. Pronto para a próxima."); connection.setTextColor(Color.rgb(35, 130, 75)); });
             } catch (Exception error) {
                 enqueueReading(event);
                 appendLog("Leitura pendente: " + code + " (" + error.getMessage() + ")");
-                runOnUiThread(() -> { connection.setText("Sem comunicação: leitura salva no coletor."); connection.setTextColor(Color.rgb(180, 100, 20)); });
+                runOnUiThread(() -> { readingInProgress = false; connection.setText("Sem comunicação: leitura salva no coletor. Pronto para a próxima."); connection.setTextColor(Color.rgb(180, 100, 20)); });
             }
         });
     }

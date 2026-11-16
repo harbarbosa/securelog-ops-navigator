@@ -574,7 +574,8 @@ public class MainActivity extends Activity {
 
     private void showLogs() {
         String logs = prefs.getString("local_logs", "Nenhum evento registrado.");
-        new AlertDialog.Builder(this).setTitle("Logs do coletor").setMessage(logs).setPositiveButton("Fechar", null).show();
+        String diagnostic = prefs.getString("last_scan_debug", "Nenhum evento do scanner registrado.");
+        new AlertDialog.Builder(this).setTitle("Logs do coletor").setMessage("Último diagnóstico:\n" + diagnostic + "\n\nHistórico:\n" + logs).setPositiveButton("Fechar", null).show();
     }
 
     private void appendLog(String message) {
@@ -641,6 +642,11 @@ public class MainActivity extends Activity {
         Button unlock = secondaryButton("Liberar aparelho");
         unlock.setOnClickListener(v -> requestKioskExit());
         content.addView(unlock, params(WRAP, dp(56)));
+        Button logs = secondaryButton("Logs do coletor");
+        logs.setOnClickListener(v -> showLogs());
+        content.addView(logs, params(WRAP, dp(56)));
+        content.addView(text("Diagnóstico do scanner", 15, INK), params(WRAP, dp(34)));
+        content.addView(text("Último evento: " + prefs.getString("last_scan_debug", "nenhum evento recebido"), 13, MUTED), params(WRAP, dp(54)));
         configStatus = text("", 14, Color.DKGRAY);
         configStatus.setPadding(0, dp(12), 0, 0);
         content.addView(configStatus, params(WRAP, dp(64)));

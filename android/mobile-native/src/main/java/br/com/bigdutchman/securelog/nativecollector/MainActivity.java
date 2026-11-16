@@ -138,11 +138,6 @@ public class MainActivity extends Activity {
         configureDataWedge();
     }
 
-    @Override protected void onDestroy() {
-        if (receiverRegistered) { unregisterReceiver(zebraReceiver); receiverRegistered = false; }
-        super.onDestroy();
-    }
-
     private void showLogin() {
         sessionActive = false;
         qrLoginInProgress = false;
@@ -896,5 +891,9 @@ public class MainActivity extends Activity {
     private int dp(int value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
     private static final int WRAP = ViewGroup.LayoutParams.MATCH_PARENT;
 
-    @Override protected void onDestroy() { executor.shutdownNow(); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        if (receiverRegistered) { unregisterReceiver(zebraReceiver); receiverRegistered = false; }
+        executor.shutdownNow();
+        super.onDestroy();
+    }
 }

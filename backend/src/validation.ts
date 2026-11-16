@@ -1,4 +1,5 @@
 import {z} from 'zod';
+export const isLoginPayload=(value:string):boolean=>/^![^!\s]+![\s\S]+$/.test(value.trim());
 export const readingInput=z.object({
  device_event_id:z.string().trim().min(1).max(128),
  device_id:z.string().uuid(),

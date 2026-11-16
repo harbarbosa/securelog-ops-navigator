@@ -3,11 +3,12 @@ import {z} from 'zod';
 import {pool} from './db.js';
 import {authenticateDevice} from './device-auth.js';
 import {requireUser} from './auth.js';
-import {readingInput} from './validation.js';
+import {isLoginPayload,readingInput} from './validation.js';
 export async function registerDeviceReadings(app:FastifyInstance){
  app.post('/api/device/readings',{config:{rateLimit:{max:120,timeWindow:'1 minute'}}},async(req,reply)=>{
   const device=await authenticateDevice(req,reply);if(!device)return;
    const body=readingInput.omit({device_id:true,camera_id:true}).extend({location_id:z.string().uuid().optional()}).parse(req.body);
+   if(isLoginPayload(body.code))return reply.code(202).send({ignored:true,reason:'login_payload'});
    const locationId=body.location_id??device.location_id;
    if(!locationId)return reply.code(409).send({error:'Selecione um local para o coletor'});
    if(req.cookies.securelog_session){

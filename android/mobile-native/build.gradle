@@ -10,7 +10,7 @@ android {
         applicationId 'br.com.bigdutchman.securelog.nativecollector'
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName '0.3.1'
+        versionCode 23
+        versionName '0.3.2'
     }
 }

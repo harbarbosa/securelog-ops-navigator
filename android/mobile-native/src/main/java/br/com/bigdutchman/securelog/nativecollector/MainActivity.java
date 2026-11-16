@@ -494,6 +494,10 @@ public class MainActivity extends Activity {
         Intent create = new Intent("com.symbol.datawedge.api.ACTION");
         create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", "SecureLog");
         sendBroadcast(create);
+        handler.postDelayed(this::configureDataWedgeProfile, 800);
+    }
+
+    private void configureDataWedgeProfile() {
         Bundle app = new Bundle();
         app.putString("PACKAGE_NAME", getPackageName());
         app.putStringArray("ACTIVITY_LIST", new String[]{"*"});

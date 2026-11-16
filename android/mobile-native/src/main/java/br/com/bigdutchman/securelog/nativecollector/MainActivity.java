@@ -174,6 +174,7 @@ public class MainActivity extends Activity {
                 JSONObject user = response.optJSONObject("user");
                 String role = user == null ? "operator" : user.optString("role", "operator");
                 saveCachedUser(username, password, role);
+                ensureDeviceToken(server, port);
                 JSONArray locations = fetchLocations(server, port);
                 cacheLocations(locations);
                 try { cacheDevices(fetchDevices(server, port)); } catch (Exception ignored) { }
@@ -545,6 +546,14 @@ public class MainActivity extends Activity {
             prefs.edit().putString("provision_status", "Conexão bem-sucedida. Coletor associado e autorizado.").apply();
         }
         return result;
+    }
+
+    private void ensureDeviceToken(String server, String port) {
+        if (!prefs.getString("device_token", "").isEmpty()) return;
+        try {
+            JSONObject result = registerCollector(server, port, prefs.getString("device_name", "SecureLog Zebra"), getDeviceSerial());
+            if ("pending".equals(result.optString("status"))) pollPairing(server, port);
+        } catch (Exception ignored) { }
     }
 
     private void pollPairing(String server, String port) {

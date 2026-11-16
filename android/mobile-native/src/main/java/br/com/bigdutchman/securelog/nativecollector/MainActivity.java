@@ -146,6 +146,7 @@ public class MainActivity extends Activity {
     private void showLogin() {
         sessionActive = false;
         qrLoginInProgress = false;
+        prefs.edit().remove("last_scan_debug").apply();
         handler.removeCallbacks(inactivityLogout);
         handler.removeCallbacks(syncLoop);
         content = new LinearLayout(this);
@@ -176,10 +177,9 @@ public class MainActivity extends Activity {
         status = text("", 14, Color.DKGRAY);
         status.setPadding(0, dp(14), 0, 0);
         String provisioningStatus = prefs.getString("provision_status", "");
-        String scanStatus = prefs.getString("last_scan_debug", "aguardando leitura");
-        status.setText((provisioningStatus.isEmpty() ? "" : provisioningStatus + "\n") + "Scanner: " + scanStatus);
+        status.setText((provisioningStatus.isEmpty() ? "" : provisioningStatus + "\n") + "Scanner: aguardando leitura");
         content.addView(status, params(WRAP, dp(70)));
-        scannerDiagnostic = text("Scanner: " + prefs.getString("last_scan_debug", "aguardando leitura"), 12, MUTED);
+        scannerDiagnostic = text("Scanner: aguardando leitura", 12, MUTED);
         content.addView(scannerDiagnostic, params(WRAP, dp(42)));
         Button diagnostic = secondaryButton("Diagnóstico do scanner");
         diagnostic.setOnClickListener(v -> showLogs());
@@ -518,7 +518,16 @@ public class MainActivity extends Activity {
         Intent create = new Intent("com.symbol.datawedge.api.ACTION");
         create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", "SecureLog");
         sendBroadcast(create);
-        handler.postDelayed(this::configureDataWedgeProfile, 800);
+        handler.postDelayed(() -> {
+            configureDataWedgeProfile();
+            handler.postDelayed(this::activateDataWedgeProfile, 300);
+        }, 800);
+    }
+
+    private void activateDataWedgeProfile() {
+        Intent intent = new Intent("com.symbol.datawedge.api.ACTION");
+        intent.putExtra("com.symbol.datawedge.api.SWITCH_TO_PROFILE", "SecureLog");
+        sendBroadcast(intent);
     }
 
     private void configureDataWedgeProfile() {

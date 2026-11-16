@@ -294,11 +294,11 @@ public class MainActivity extends Activity {
     }
 
     private void showHome(String username, String role, boolean online, JSONArray locations) {
-        activateSession();
         if (!"admin".equalsIgnoreCase(role)) {
-            showOperator(username, online, locations);
+            showLocationSelection(username, online, locations);
             return;
         }
+        activateSession();
         content.removeAllViews();
         TextView title = text("SecureLog Coletor", 26, Color.rgb(235, 118, 0));
         title.setTypeface(null, 1);
@@ -319,6 +319,35 @@ public class MainActivity extends Activity {
         content.addView(logout, params(WRAP, dp(56)));
     }
 
+    private void showLocationSelection(String username, boolean online, JSONArray locations) {
+        operatorLocations = locations == null ? new JSONArray() : locations;
+        content.removeAllViews();
+        content.addView(text("Escolha o local da leitura", 26, Color.rgb(235, 118, 0)), params(WRAP, dp(58)));
+        content.addView(text("Usuário: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
+        content.addView(text(online ? "Catálogo atualizado do servidor" : "Sem rede: usando locais salvos no coletor", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(48)));
+        locationSpinner = new Spinner(this);
+        String[] names = new String[Math.max(operatorLocations.length(), 1)];
+        for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
+        if (operatorLocations.length() == 0) names[0] = "Nenhum local cadastrado";
+        locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
+        content.addView(locationSpinner, params(WRAP, dp(62)));
+        Button continueButton = button("Continuar para as leituras");
+        continueButton.setEnabled(operatorLocations.length() > 0);
+        continueButton.setOnClickListener(v -> {
+            JSONObject selected = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition());
+            if (selected == null || selected.optString("id", "").isEmpty()) return;
+            prefs.edit().putString("last_location_id", selected.optString("id")).apply();
+            showOperator(username, online, operatorLocations);
+        });
+        content.addView(continueButton, params(WRAP, dp(58)));
+        TextView message = text(operatorLocations.length() == 0 ? "Nenhum local ativo foi disponibilizado pelo sistema." : "O local poderá ser alterado durante o trabalho.", 14, Color.DKGRAY);
+        message.setPadding(0, dp(12), 0, 0);
+        content.addView(message, params(WRAP, dp(70)));
+        Button logout = button("Sair");
+        logout.setOnClickListener(v -> showLogin());
+        content.addView(logout, params(WRAP, dp(56)));
+    }
+
     private void showOperator(String username, boolean online, JSONArray locations) {
         activateSession();
         operatorLocations = locations == null ? new JSONArray() : locations;
@@ -333,6 +362,10 @@ public class MainActivity extends Activity {
         for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
         if (operatorLocations.length() == 0) names[0] = "Nenhum local atribuído ao usuário";
         locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
+        String lastLocationId = prefs.getString("last_location_id", "");
+        for (int i = 0; i < operatorLocations.length(); i++) {
+            if (lastLocationId.equals(operatorLocations.optJSONObject(i).optString("id", ""))) { locationSpinner.setSelection(i); break; }
+        }
         content.addView(locationSpinner, params(WRAP, dp(58)));
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
         content.addView(codeInput, params(WRAP, dp(64)));

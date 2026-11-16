@@ -91,12 +91,17 @@ async function searchRecorder(r:Recorder,channel:number,start:string,end:string)
 function requireFfmpeg(){return process.env.FFMPEG_PATH??'ffmpeg';}
 function requireRecorderHelper(){return process.env.SECURELOG_RECORDER_HELPER??join(process.cwd(),'..','native','securelog-recorder','bin','win-x86','securelog-recorder.exe');}
 function sdkRecording(r:Recorder,channel:number,start:string,end:string):MediaFile{return {channel:Math.max(0,channel-1),start_time:nvrTime(start),end_time:nvrTime(end),file_path:'',type:'netsdk'};}
-function spawnSdkPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,durationSeconds:number){
+async function spawnSdkPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,durationSeconds:number){
  if(!r.username||!r.password_ciphertext)throw new Error('Credenciais do gravador não configuradas');
- const password=decryptSecret(r.password_ciphertext);const raw=spawn(requireRecorderHelper(),['--host',r.host,'--port',String(r.sdk_port),'--user',r.username,'--password-stdin','1','--channel',String(Math.max(0,channel-1)),'--start',nvrTime(start),'--end',nvrTime(end),'--output','-'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+ const password=decryptSecret(r.password_ciphertext);const rawPath=join(dir,'recording.dav');const raw=spawn(requireRecorderHelper(),['--host',r.host,'--port',String(r.sdk_port),'--user',r.username,'--password-stdin','1','--channel',String(Math.max(0,channel-1)),'--start',nvrTime(start),'--end',nvrTime(end),'--output',rawPath],{windowsHide:true,stdio:['pipe','ignore','pipe']});
+ const output=join(dir,'index.m3u8');let helperError='';
+ raw.stderr?.on('data',(chunk:Buffer)=>{helperError+=chunk.toString();});
  raw.stdin.write(`${password}\n`);raw.stdin.end();
- const output=join(dir,'index.m3u8');const child=spawn(requireFfmpeg(),['-hide_banner','-loglevel','error','-i','pipe:0','-ss','0','-t',String(durationSeconds),'-map','0:v:0','-an','-c:v','libx264','-preset','veryfast','-f','hls','-hls_time','2','-hls_list_size','0','-hls_flags','independent_segments',output],{windowsHide:true,stdio:['pipe','ignore','pipe']});
- raw.stdout.pipe(child.stdin!);raw.stderr?.on('data',()=>undefined);raw.on('error',()=>{if(!child.killed)child.kill();});child.on('close',()=>{setTimeout(()=>{void rm(dir,{recursive:true,force:true});},10*60*1000);});return child;
+ const helperCode=await new Promise<number|null>((resolve,reject)=>{raw.once('error',reject);raw.once('close',resolve);});
+ if(helperCode!==0)throw new Error(helperError.trim()||`NetSDK não retornou a gravação do canal ${channel} (código ${helperCode??'desconhecido'})`);
+ const rawInfo=await stat(rawPath).catch(()=>null);if(!rawInfo?.size)throw new Error(`O gravador não retornou dados para o canal ${channel} no período pesquisado`);
+ const child=spawn(requireFfmpeg(),['-hide_banner','-loglevel','error','-i',rawPath,'-ss','0','-t',String(durationSeconds),'-map','0:v:0','-an','-c:v','libx264','-preset','veryfast','-f','hls','-hls_time','2','-hls_list_size','0','-hls_flags','independent_segments',output],{windowsHide:true,stdio:['ignore','ignore','pipe']});
+ child.on('close',()=>{setTimeout(()=>{void rm(dir,{recursive:true,force:true});},10*60*1000);});return child;
 }
 async function spawnPlayback(r:Recorder,channel:number,start:string,end:string,dir:string,filePath?:string,offsetSeconds=0,durationSeconds=30){
  if(r.sdk_port>0&&!filePath)return spawnSdkPlayback(r,channel,start,end,dir,durationSeconds);

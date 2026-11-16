@@ -513,6 +513,16 @@ public class MainActivity extends Activity {
         intentConfig.putString("intent_delivery", "2");
         profileConfig.putBundle("PARAM_LIST", intentConfig);
         sendBroadcast(setDataWedgeConfig(profileConfig));
+
+        Bundle keyboardConfig = new Bundle();
+        keyboardConfig.putString("PROFILE_NAME", "SecureLog");
+        keyboardConfig.putString("PROFILE_ENABLED", "true");
+        keyboardConfig.putString("CONFIG_MODE", "UPDATE");
+        keyboardConfig.putString("PLUGIN_NAME", "KEYSTROKE");
+        Bundle keyboardParams = new Bundle();
+        keyboardParams.putString("keystroke_output_enabled", "false");
+        keyboardConfig.putBundle("PARAM_LIST", keyboardParams);
+        sendBroadcast(setDataWedgeConfig(keyboardConfig));
     }
 
     private Intent setDataWedgeConfig(Bundle config) {

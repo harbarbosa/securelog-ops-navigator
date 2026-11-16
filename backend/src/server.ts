@@ -76,7 +76,7 @@ app.get('/api/:entity',async(req,reply)=>{
   else if(entity==='cameras')where=' WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1))';
   else if(entity==='recorders')where=' WHERE id IN (SELECT recorder_id FROM cameras WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1)))';
   else if(entity==='users'&&user.role==='supervisor')where=' WHERE id IN (SELECT user_id FROM user_locations WHERE location_id IN (SELECT location_id FROM user_locations WHERE user_id=$1))';
-  params.push(user.id);
+  if(where.includes('$1'))params.push(user.id);
  }
  const {rows}=await pool.query(`SELECT ${cfg.columns} FROM ${cfg.table}${where} ORDER BY ${cfg.sort} LIMIT $${params.length+1} OFFSET $${params.length+2}`,[...params,query.limit,query.offset]);
  const count=await pool.query(`SELECT count(*)::int AS total FROM ${cfg.table}${where}`,params);

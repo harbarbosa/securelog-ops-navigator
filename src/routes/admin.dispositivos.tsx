@@ -32,7 +32,7 @@ function Dispositivos(){
   </Table>{loading&&<p className="p-4 text-sm">Carregando...</p>}{!loading&&!rows.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum leitor cadastrado.</p>}</Card>
   {edit&&<FormDialog open onOpenChange={()=>setEdit(null)} title={edit.id?"Editar leitor":"Novo leitor"} onSave={()=>void save()}>
   <Field label="Nome"><Input value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})}/></Field>
-  <Field label="Número de série"><Input value={edit.serial_number} onChange={e=>setEdit({...edit,serial_number:e.target.value})}/></Field>
+  <Field label="Número de série"><Input value={edit.serial_number} readOnly={Boolean(edit.id)} className={edit.id?"bg-muted text-muted-foreground":""} onChange={e=>setEdit({...edit,serial_number:e.target.value})}/></Field>
   <Field label="Local permitido"><select className="w-full rounded-md border bg-background p-2" value={edit.location_id} onChange={e=>setEdit({...edit,location_id:e.target.value})}><option value="">Nenhum</option>{locations.filter(l=>l.active||l.id===edit.location_id).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></Field>
   <p className="text-xs text-muted-foreground sm:col-span-2">Comunicação e sincronização com o Zebra serão habilitadas em uma próxima etapa.</p>
   </FormDialog>}

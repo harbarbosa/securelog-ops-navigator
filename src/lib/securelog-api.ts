@@ -13,8 +13,11 @@ export class ApiError extends Error {
  constructor(public status:number,message:string){super(message);this.name='ApiError';}
 }
 export async function api<T>(path:string,options:RequestInit={}):Promise<T>{
- const controller=new AbortController();const timeout=window.setTimeout(()=>controller.abort(),10000);
- const response=await fetch((runtimeBaseUrl||baseUrl)+path,{...options,signal:options.signal??controller.signal,credentials:'include',headers:{...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}}).finally(()=>window.clearTimeout(timeout));
+ const controller=new AbortController();const timeoutMs=path.startsWith('/api/media/')?120000:10000;const timeout=window.setTimeout(()=>controller.abort(),timeoutMs);
+ let response:Response;
+ try { response=await fetch((runtimeBaseUrl||baseUrl)+path,{...options,signal:options.signal??controller.signal,credentials:'include',headers:{...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}}); }
+ catch(error){ if(error instanceof DOMException&&error.name==='AbortError') throw new Error('A preparação do vídeo excedeu o tempo esperado. Tente novamente ou reduza o intervalo.'); throw error; }
+ finally { window.clearTimeout(timeout); }
  const payload:unknown=await response.json().catch(()=>null);
  if(!response.ok){const error=payload as {error?:string}|null;throw new ApiError(response.status,error?.error??'Falha de comunicação com o SecureLog');}
  return payload as T;

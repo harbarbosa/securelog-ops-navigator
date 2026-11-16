@@ -634,7 +634,12 @@ public class MainActivity extends Activity {
         DevicePolicyManager policy = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
         if (policy == null || !policy.isDeviceOwnerApp(getPackageName())) return;
         try {
-            policy.setLockTaskPackages(new ComponentName(this, SecureLogDeviceAdminReceiver.class), new String[]{getPackageName()});
+            ComponentName admin = new ComponentName(this, SecureLogDeviceAdminReceiver.class);
+            policy.setLockTaskPackages(admin, new String[]{getPackageName()});
+            IntentFilter homeFilter = new IntentFilter(Intent.ACTION_MAIN);
+            homeFilter.addCategory(Intent.CATEGORY_HOME);
+            homeFilter.addCategory(Intent.CATEGORY_DEFAULT);
+            policy.addPersistentPreferredActivity(admin, homeFilter, new ComponentName(this, MainActivity.class));
             startLockTask();
         } catch (Exception ignored) { }
     }

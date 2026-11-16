@@ -327,15 +327,21 @@ public class MainActivity extends Activity {
         content.addView(text("Usuário: " + username, 16, Color.DKGRAY), params(WRAP, dp(38)));
         content.addView(text(online ? "Catálogo atualizado do servidor" : "Sem rede: usando locais salvos no coletor", 15, online ? Color.rgb(35, 130, 75) : Color.rgb(180, 100, 20)), params(WRAP, dp(48)));
         locationSpinner = new Spinner(this);
-        String[] names = new String[Math.max(operatorLocations.length(), 1)];
-        for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
-        if (operatorLocations.length() == 0) names[0] = "Nenhum local cadastrado";
+        String[] names = new String[Math.max(operatorLocations.length() + 1, 1)];
+        names[0] = operatorLocations.length() == 0 ? "Nenhum local cadastrado" : "Selecione um local";
+        for (int i = 0; i < operatorLocations.length(); i++) names[i + 1] = operatorLocations.optJSONObject(i).optString("name", "Local");
         locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
         content.addView(locationSpinner, params(WRAP, dp(62)));
         Button continueButton = button("Continuar para as leituras");
-        continueButton.setEnabled(operatorLocations.length() > 0);
+        continueButton.setEnabled(false);
+        locationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { continueButton.setEnabled(position > 0); }
+            public void onNothingSelected(android.widget.AdapterView<?> parent) { continueButton.setEnabled(false); }
+        });
         continueButton.setOnClickListener(v -> {
-            JSONObject selected = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition());
+            int selectedPosition = locationSpinner.getSelectedItemPosition();
+            if (selectedPosition <= 0) return;
+            JSONObject selected = operatorLocations.optJSONObject(selectedPosition - 1);
             if (selected == null || selected.optString("id", "").isEmpty()) return;
             prefs.edit().putString("last_location_id", selected.optString("id")).apply();
             showOperator(username, online, operatorLocations);
@@ -359,14 +365,20 @@ public class MainActivity extends Activity {
         content.addView(operatorConnection, params(WRAP, dp(42)));
         content.addView(text("Local da leitura", 14, Color.DKGRAY), params(WRAP, dp(30)));
         locationSpinner = new Spinner(this);
-        String[] names = new String[Math.max(operatorLocations.length(), 1)];
-        for (int i = 0; i < operatorLocations.length(); i++) names[i] = operatorLocations.optJSONObject(i).optString("name", "Local");
-        if (operatorLocations.length() == 0) names[0] = "Nenhum local atribuído ao usuário";
+        String[] names = new String[Math.max(operatorLocations.length() + 1, 1)];
+        names[0] = operatorLocations.length() == 0 ? "Nenhum local atribuído ao usuário" : "Selecione um local";
+        for (int i = 0; i < operatorLocations.length(); i++) names[i + 1] = operatorLocations.optJSONObject(i).optString("name", "Local");
         locationSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, names));
         String lastLocationId = prefs.getString("last_location_id", "");
         for (int i = 0; i < operatorLocations.length(); i++) {
-            if (lastLocationId.equals(operatorLocations.optJSONObject(i).optString("id", ""))) { locationSpinner.setSelection(i); break; }
+            if (lastLocationId.equals(operatorLocations.optJSONObject(i).optString("id", ""))) { locationSpinner.setSelection(i + 1); break; }
         }
+        locationSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                if (position > 0 && position - 1 < operatorLocations.length()) prefs.edit().putString("last_location_id", operatorLocations.optJSONObject(position - 1).optString("id", "")).apply();
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
         content.addView(locationSpinner, params(WRAP, dp(58)));
         codeInput = field("Código lido pelo Zebra", "", InputType.TYPE_CLASS_TEXT);
         content.addView(codeInput, params(WRAP, dp(64)));
@@ -381,12 +393,12 @@ public class MainActivity extends Activity {
 
     private void recordReading(TextView connection) {
         String code = codeInput.getText().toString().trim();
-        if (code.isEmpty() || operatorLocations.length() == 0) {
+        if (code.isEmpty() || operatorLocations.length() == 0 || locationSpinner.getSelectedItemPosition() <= 0) {
             connection.setText("Informe um código e selecione um local.");
             connection.setTextColor(Color.rgb(180, 50, 50));
             return;
         }
-        JSONObject location = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition());
+        JSONObject location = operatorLocations.optJSONObject(locationSpinner.getSelectedItemPosition() - 1);
         String locationId = location == null ? "" : location.optString("id", "");
         JSONObject event = new JSONObject();
         try {

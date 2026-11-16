@@ -49,12 +49,14 @@ export async function registerDeviceProvision(app:FastifyInstance){
  app.post('/api/manage/devices/:id/associate',async(req,reply)=>{
   const user=await requireUser(req,reply);if(!user||!requireRole(user,['admin'],reply))return;
   const {id}=z.object({id:z.string().uuid()}).parse(req.params);
-  const body=z.object({location_id:z.string().uuid()}).parse(req.body);
-  const location=await pool.query('SELECT id FROM locations WHERE id=$1 AND active=true',[body.location_id]);
-  if(!location.rowCount)return reply.code(404).send({error:'Local ativo não encontrado'});
+  const body=z.object({location_id:z.string().uuid().nullable().optional()}).parse(req.body);
+  if(body.location_id){
+   const location=await pool.query('SELECT id FROM locations WHERE id=$1 AND active=true',[body.location_id]);
+   if(!location.rowCount)return reply.code(404).send({error:'Local ativo não encontrado'});
+  }
   const device=await pool.query('SELECT id FROM devices WHERE id=$1',[id]);
   if(!device.rowCount)return reply.code(404).send({error:'Leitor não encontrado'});
-  await pool.query('UPDATE devices SET location_id=$1,active=true WHERE id=$2',[body.location_id,id]);
+  await pool.query('UPDATE devices SET location_id=$1,active=true WHERE id=$2',[body.location_id??null,id]);
   const token=randomBytes(32).toString('hex');
   await pool.query(`INSERT INTO device_credentials(device_id,token_hash,token_ciphertext) VALUES($1,$2,$3)
    ON CONFLICT(device_id) DO UPDATE SET token_hash=excluded.token_hash,token_ciphertext=excluded.token_ciphertext,rotated_at=now()`,[id,digest(token),encryptSecret(token)]);

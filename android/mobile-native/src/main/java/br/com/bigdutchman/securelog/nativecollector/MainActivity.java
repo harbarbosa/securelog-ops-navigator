@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Build;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.MotionEvent;
 import android.view.Gravity;
@@ -54,7 +55,6 @@ public class MainActivity extends Activity {
     private EditText configServerInput;
     private EditText configPortInput;
     private EditText configDeviceInput;
-    private EditText configSerialInput;
     private EditText configTokenInput;
     private TextView configStatus;
     private TextView operatorConnection;
@@ -144,6 +144,8 @@ public class MainActivity extends Activity {
 
         status = text("", 14, Color.DKGRAY);
         status.setPadding(0, dp(14), 0, 0);
+        String provisioningStatus = prefs.getString("provision_status", "");
+        if (!provisioningStatus.isEmpty()) status.setText(provisioningStatus);
         content.addView(status, params(WRAP, dp(70)));
         setContentView(scroll(content));
     }
@@ -445,12 +447,11 @@ public class MainActivity extends Activity {
         configServerInput = field("Endereço do servidor", prefs.getString("server", ""), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         configPortInput = field("Porta da API", prefs.getString("port", "3333"), InputType.TYPE_CLASS_NUMBER);
         configDeviceInput = field("Nome do coletor", prefs.getString("device_name", ""), InputType.TYPE_CLASS_TEXT);
-        configSerialInput = field("Número de série do coletor", prefs.getString("serial_number", ""), InputType.TYPE_CLASS_TEXT);
         configTokenInput = field("Token do coletor", prefs.getString("device_token", ""), InputType.TYPE_CLASS_TEXT);
         content.addView(configServerInput, params(WRAP, dp(58)));
         content.addView(configPortInput, params(WRAP, dp(58)));
         content.addView(configDeviceInput, params(WRAP, dp(58)));
-        content.addView(configSerialInput, params(WRAP, dp(58)));
+        content.addView(text("Número de série automático: " + getDeviceSerial(), 14, Color.DKGRAY), params(WRAP, dp(42)));
         content.addView(configTokenInput, params(WRAP, dp(58)));
         Button save = button("Salvar configurações");
         save.setOnClickListener(v -> saveConfig());
@@ -468,9 +469,9 @@ public class MainActivity extends Activity {
         String server = configServerInput.getText().toString().trim();
         String port = configPortInput.getText().toString().trim();
         String name = configDeviceInput.getText().toString().trim();
-        String serial = configSerialInput.getText().toString().trim();
-        if (server.isEmpty() || port.isEmpty() || name.isEmpty() || serial.isEmpty()) {
-            new AlertDialog.Builder(this).setTitle("Configuração incompleta").setMessage("Informe o endereço e a porta do servidor.").setPositiveButton("OK", null).show();
+        String serial = getDeviceSerial();
+        if (server.isEmpty() || port.isEmpty() || name.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("Configuração incompleta").setMessage("Informe o endereço, a porta e o nome do coletor.").setPositiveButton("OK", null).show();
             return;
         }
         prefs.edit().putString("server", server).putString("port", port)
@@ -481,13 +482,17 @@ public class MainActivity extends Activity {
             try {
                 JSONObject registration = registerCollector(server, port, name, serial);
                 String statusValue = registration.optString("status", "pending");
-                runOnUiThread(() -> configStatus.setText(statusValue.equals("associated") ? "Coletor já associado e autorizado." : "Coletor registrado como pendente. Associe-o no painel web."));
+                String message = statusValue.equals("associated") ? "Conexão bem-sucedida. Coletor associado e autorizado." : "Conexão bem-sucedida. Aguardando associação no painel web.";
+                prefs.edit().putString("provision_status", message).apply();
+                runOnUiThread(() -> configStatus.setText(message));
                 if ("pending".equals(statusValue)) pollPairing(server, port);
             } catch (Exception error) {
-                runOnUiThread(() -> configStatus.setText("Não foi possível registrar agora. Verifique a rede e tente novamente."));
+                String message = "Falha de conexão com o servidor. Verifique endereço, porta e rede.";
+                prefs.edit().putString("provision_status", message).apply();
+                runOnUiThread(() -> configStatus.setText(message));
             }
         });
-        new AlertDialog.Builder(this).setTitle("Configurações salvas").setMessage("O coletor foi configurado. Se aparecer como pendente, associe-o a um local no painel web.").setPositiveButton("OK", (dialog, which) -> showLogin()).show();
+        configStatus.setText("Salvando configuração e testando conexão...");
     }
 
     private JSONObject registerCollector(String server, String port, String name, String serial) throws Exception {
@@ -521,6 +526,9 @@ public class MainActivity extends Activity {
                         JSONObject payload = new JSONObject(response);
                         if ("associated".equals(payload.optString("status")) && payload.has("token")) {
                             prefs.edit().putString("device_token", payload.getString("token")).remove("pairing_code").apply();
+                            String message = "Conexão bem-sucedida. Coletor associado e token recebido.";
+                            prefs.edit().putString("provision_status", message).apply();
+                            runOnUiThread(() -> { if (configStatus != null) configStatus.setText(message); });
                             return;
                         }
                     }
@@ -528,6 +536,14 @@ public class MainActivity extends Activity {
                 try { Thread.sleep(5000); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); return; }
             }
         });
+    }
+
+    private String getDeviceSerial() {
+        String serial = "";
+        try { serial = Build.getSerial(); } catch (Exception ignored) { }
+        if (serial == null || serial.isEmpty() || "unknown".equalsIgnoreCase(serial)) serial = Build.SERIAL;
+        if (serial == null || serial.isEmpty() || "unknown".equalsIgnoreCase(serial)) serial = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        return serial == null || serial.isEmpty() ? "securelog-" + Build.MODEL : serial;
     }
 
     private void saveCachedUser(String username, String password, String role) {

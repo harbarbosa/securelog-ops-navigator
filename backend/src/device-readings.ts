@@ -12,7 +12,7 @@ export async function registerDeviceReadings(app:FastifyInstance){
    if(!locationId)return reply.code(409).send({error:'Selecione um local para o coletor'});
    if(req.cookies.securelog_session){
     const user=await requireUser(req,reply);if(!user)return;
-    if(user.role!=='admin'){
+    if(user.role!=='admin'&&user.role!=='operator'){
      const allowed=await pool.query('SELECT 1 FROM user_locations WHERE user_id=$1 AND location_id=$2',[user.id,locationId]);
      if(!allowed.rowCount)return reply.code(403).send({error:'O operador não tem acesso a este local'});
     }

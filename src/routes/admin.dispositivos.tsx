@@ -24,7 +24,7 @@ function Dispositivos(){
   try{if(edit.id)await securelog.update("devices",edit.id,data);else await securelog.create("devices",data);toast.success("Dispositivo salvo");setEdit(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao salvar dispositivo");}
  };
  const toggle=async(r:Device)=>{try{await securelog.update("devices",r.id,{active:!r.active});await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao atualizar");}};
- const link=async()=>{if(!associate?.location_id){toast.error("Selecione um local");return;}try{await securelog.associateDevice(associate.id,associate.location_id);toast.success("Leitor associado e token enviado para pareamento");setAssociate(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao associar leitor");}};
+ const link=async()=>{if(!associate)return;try{await securelog.associateDevice(associate.id,associate.location_id);toast.success("Leitor associado e token enviado para pareamento");setAssociate(null);await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao associar leitor");}};
  const remove=async(r:Device)=>{if(!window.confirm(`Excluir o leitor “${r.name}”? Essa ação não pode ser desfeita.`))return;try{await securelog.delete("devices",r.id);toast.success("Leitor excluído");await load();}catch(e){toast.error(e instanceof Error?e.message:"Falha ao excluir leitor");}};
  return <>
   <PageHeader title="Dispositivos e leitores" crumbs={["Configurações","Dispositivos"]} actions={<Button onClick={()=>setEdit({...blank})}><Plus className="h-4 w-4"/>Novo leitor</Button>}/>
@@ -39,7 +39,7 @@ function Dispositivos(){
   </FormDialog>}
   {associate&&<FormDialog open onOpenChange={()=>setAssociate(null)} title={`Associar leitor: ${associate.name}`} onSave={()=>void link()}>
   <Field label="Local permitido"><select className="w-full rounded-md border bg-background p-2" value={associate.location_id??""} onChange={e=>setAssociate({...associate,location_id:e.target.value||null})}><option value="">Selecione um local</option>{locations.filter(l=>l.active).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></Field>
-  <p className="text-xs text-muted-foreground sm:col-span-2">Ao associar, o servidor ativa o leitor e libera um token temporário para o coletor buscar automaticamente.</p>
+  <p className="text-xs text-muted-foreground sm:col-span-2">O local é opcional. O operador poderá escolher ou mudar o local durante o trabalho. Ao associar, o servidor ativa o leitor e libera um token temporário.</p>
   </FormDialog>}
  </>;
 }

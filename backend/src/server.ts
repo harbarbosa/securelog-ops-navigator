@@ -71,7 +71,7 @@ app.get('/api/:entity',async(req,reply)=>{
  const params:unknown[]=[];
  let where='';
  if(user.role!=='admin'){
-  if(entity==='locations')where=' WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1)';
+  if(entity==='locations')where=' WHERE active=true';
   else if(entity==='devices')where=' WHERE location_id IN (SELECT location_id FROM user_locations WHERE user_id=$1)';
   else if(entity==='cameras')where=' WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1))';
   else if(entity==='recorders')where=' WHERE id IN (SELECT recorder_id FROM cameras WHERE id IN (SELECT primary_camera_id FROM locations WHERE id IN (SELECT location_id FROM user_locations WHERE user_id=$1)))';

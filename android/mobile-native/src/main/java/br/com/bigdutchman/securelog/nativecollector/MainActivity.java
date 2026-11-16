@@ -173,10 +173,14 @@ public class MainActivity extends Activity {
         status = text("", 14, Color.DKGRAY);
         status.setPadding(0, dp(14), 0, 0);
         String provisioningStatus = prefs.getString("provision_status", "");
-        if (!provisioningStatus.isEmpty()) status.setText(provisioningStatus);
+        String scanStatus = prefs.getString("last_scan_debug", "aguardando leitura");
+        status.setText((provisioningStatus.isEmpty() ? "" : provisioningStatus + "\n") + "Scanner: " + scanStatus);
         content.addView(status, params(WRAP, dp(70)));
         scannerDiagnostic = text("Scanner: " + prefs.getString("last_scan_debug", "aguardando leitura"), 12, MUTED);
         content.addView(scannerDiagnostic, params(WRAP, dp(42)));
+        Button diagnostic = secondaryButton("Diagnóstico do scanner");
+        diagnostic.setOnClickListener(v -> showLogs());
+        content.addView(diagnostic, params(WRAP, dp(52)));
         setContentView(scroll(content));
     }
 
@@ -590,7 +594,10 @@ public class MainActivity extends Activity {
         Log.i(LOG_TAG, message);
         prefs.edit().putString("last_scan_debug", message).apply();
         appendLog(message);
-        if (scannerDiagnostic != null) runOnUiThread(() -> scannerDiagnostic.setText("Scanner: " + message));
+        if (scannerDiagnostic != null) runOnUiThread(() -> {
+            scannerDiagnostic.setText("Scanner: " + message);
+            if (status != null) status.setText("Scanner: " + message);
+        });
     }
 
     private void requestConfigAccess() {

@@ -484,13 +484,11 @@ public class MainActivity extends Activity {
         Bundle app = new Bundle();
         app.putString("PACKAGE_NAME", getPackageName());
         app.putStringArray("ACTIVITY_LIST", new String[]{"*"});
-        Bundle appList = new Bundle();
-        appList.putParcelableArray("APP_LIST", new Bundle[]{app});
         Bundle profile = new Bundle();
         profile.putString("PROFILE_NAME", "SecureLog");
         profile.putString("PROFILE_ENABLED", "true");
         profile.putString("CONFIG_MODE", "UPDATE");
-        profile.putBundle("APP_LIST", appList);
+        profile.putParcelableArray("APP_LIST", new Bundle[]{app});
         Bundle barcode = new Bundle();
         barcode.putString("PLUGIN_NAME", "BARCODE");
         Bundle barcodeParams = new Bundle();
@@ -511,6 +509,7 @@ public class MainActivity extends Activity {
         Bundle intentConfig = new Bundle();
         intentConfig.putString("intent_output_enabled", "true");
         intentConfig.putString("intent_action", "com.symbol.datawedge.data_string");
+        intentConfig.putString("intent_category", "android.intent.category.DEFAULT");
         intentConfig.putString("intent_delivery", "2");
         profileConfig.putBundle("PARAM_LIST", intentConfig);
         sendBroadcast(setDataWedgeConfig(profileConfig));

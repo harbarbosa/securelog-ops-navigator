@@ -7,6 +7,8 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -100,6 +102,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         showLogin();
+        applyKioskMode();
     }
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
@@ -109,6 +112,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        applyKioskMode();
         if (!receiverRegistered) {
             IntentFilter filter = new IntentFilter();
             filter.addAction("com.symbol.datawedge.data_string");
@@ -467,6 +471,28 @@ public class MainActivity extends Activity {
         Intent create = new Intent("com.symbol.datawedge.api.ACTION");
         create.putExtra("com.symbol.datawedge.api.CREATE_PROFILE", "SecureLog");
         sendBroadcast(create);
+        Bundle app = new Bundle();
+        app.putString("PACKAGE_NAME", getPackageName());
+        app.putStringArray("ACTIVITY_LIST", new String[]{"*"});
+        Bundle appList = new Bundle();
+        appList.putParcelableArray("APP_LIST", new Bundle[]{app});
+        Bundle profile = new Bundle();
+        profile.putString("PROFILE_NAME", "SecureLog");
+        profile.putString("PROFILE_ENABLED", "true");
+        profile.putString("CONFIG_MODE", "UPDATE");
+        profile.putBundle("APP_LIST", appList);
+        Bundle barcode = new Bundle();
+        barcode.putString("PLUGIN_NAME", "BARCODE");
+        Bundle barcodeParams = new Bundle();
+        barcodeParams.putString("scanner_selection", "auto");
+        barcodeParams.putString("decoder_qrcode", "true");
+        barcodeParams.putString("decoder_code128", "true");
+        barcodeParams.putString("decoder_code39", "true");
+        barcodeParams.putString("decoder_ean8", "true");
+        barcodeParams.putString("decoder_ean13", "true");
+        barcode.putBundle("PARAM_LIST", barcodeParams);
+        profile.putBundle("PLUGIN_CONFIG", barcode);
+        sendBroadcast(setDataWedgeConfig(profile));
         Bundle profileConfig = new Bundle();
         profileConfig.putString("PROFILE_NAME", "SecureLog");
         profileConfig.putString("PROFILE_ENABLED", "true");
@@ -477,9 +503,37 @@ public class MainActivity extends Activity {
         intentConfig.putString("intent_action", "com.symbol.datawedge.data_string");
         intentConfig.putString("intent_delivery", "2");
         profileConfig.putBundle("PARAM_LIST", intentConfig);
-        Intent configure = new Intent("com.symbol.datawedge.api.ACTION");
-        configure.putExtra("com.symbol.datawedge.api.SET_CONFIG", profileConfig);
-        sendBroadcast(configure);
+        sendBroadcast(setDataWedgeConfig(profileConfig));
+    }
+
+    private Intent setDataWedgeConfig(Bundle config) {
+        Intent intent = new Intent("com.symbol.datawedge.api.ACTION");
+        intent.putExtra("com.symbol.datawedge.api.SET_CONFIG", config);
+        return intent;
+    }
+
+    private void applyKioskMode() {
+        if (Build.VERSION.SDK_INT < 21) return;
+        DevicePolicyManager policy = (DevicePolicyManager) getSystemService(DEVICE_POLICY_SERVICE);
+        if (policy == null || !policy.isDeviceOwnerApp(getPackageName())) return;
+        try {
+            policy.setLockTaskPackages(new ComponentName(this, SecureLogDeviceAdminReceiver.class), new String[]{getPackageName()});
+            startLockTask();
+        } catch (Exception ignored) { }
+    }
+
+    private void requestKioskExit() {
+        EditText password = field("Senha administrativa local", "", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        new AlertDialog.Builder(this).setTitle("Liberar aparelho").setMessage("Informe a senha administrativa para sair do modo bloqueado.")
+                .setView(password).setNegativeButton("Cancelar", null).setPositiveButton("Liberar", (dialog, which) -> {
+                    if ("zebra123".equals(password.getText().toString())) stopKioskMode();
+                    else if (configStatus != null) { configStatus.setText("Senha administrativa inválida."); configStatus.setTextColor(ERROR); }
+                }).show();
+    }
+
+    private void stopKioskMode() {
+        if (Build.VERSION.SDK_INT >= 21) { try { stopLockTask(); } catch (Exception ignored) { } }
+        if (configStatus != null) { configStatus.setText("Modo bloqueado liberado neste aparelho."); configStatus.setTextColor(SUCCESS); }
     }
 
     private void showLogs() {
@@ -541,6 +595,9 @@ public class MainActivity extends Activity {
         Button back = secondaryButton("Voltar para o login");
         back.setOnClickListener(v -> showLogin());
         content.addView(back, params(WRAP, dp(56)));
+        Button unlock = secondaryButton("Liberar aparelho");
+        unlock.setOnClickListener(v -> requestKioskExit());
+        content.addView(unlock, params(WRAP, dp(56)));
         configStatus = text("", 14, Color.DKGRAY);
         configStatus.setPadding(0, dp(12), 0, 0);
         content.addView(configStatus, params(WRAP, dp(64)));

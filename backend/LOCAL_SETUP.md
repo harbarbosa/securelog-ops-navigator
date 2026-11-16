@@ -8,7 +8,7 @@ cd securelog-ops-navigator
 git checkout feat/backend-securelog
 cd backend
 cp .env.example .env
-# Edite .env e defina ADMIN_PASSWORD com uma senha forte (mínimo 12 caracteres)
+# Edite .env e defina ADMIN_PASSWORD com uma senha forte (mínimo 8 caracteres)
 docker compose up -d
 npm install
 npm run migrate

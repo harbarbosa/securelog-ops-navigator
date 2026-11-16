@@ -36,8 +36,8 @@ function Usuarios() {
   const submit = async () => {
     if (!edit) return;
     if (!edit.name.trim() || !edit.username.trim()) { toast.error("Informe nome e usuário"); return; }
-    if (!edit.id && edit.password.length < 12) { toast.error("A senha precisa ter pelo menos 12 caracteres"); return; }
-    if (edit.id && edit.password && edit.password.length < 12) { toast.error("A nova senha precisa ter pelo menos 12 caracteres"); return; }
+    if (!edit.id && edit.password.length < 8) { toast.error("A senha precisa ter pelo menos 8 caracteres"); return; }
+    if (edit.id && edit.password && edit.password.length < 8) { toast.error("A nova senha precisa ter pelo menos 8 caracteres"); return; }
     setSaving(true);
     try {
       const body: Record<string, unknown> = { name: edit.name.trim(), username: edit.username.trim(), email: edit.email.trim() || null, role: edit.role, active: edit.active };
@@ -86,7 +86,7 @@ function Usuarios() {
 
     <Dialog open={Boolean(edit)} onOpenChange={(open) => { if (!open && !saving) setEdit(null); }}>
       <DialogContent className="max-w-xl"><DialogHeader><DialogTitle>{edit?.id ? "Editar usuário" : "Adicionar usuário"}</DialogTitle></DialogHeader>
-        {edit && <div className="grid gap-4 sm:grid-cols-2"><Field label="Nome"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field><Field label="Usuário"><Input value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="username" /></Field><Field label="E-mail"><Input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field><Field label="Perfil"><select className="h-9 rounded-md border bg-background px-3 text-sm" value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value as Role })}>{Object.entries(roleLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label={edit.id ? "Nova senha (opcional)" : "Senha (mínimo 12 caracteres)"}><Input type="password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field><label className="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} />Usuário ativo</label></div>}
+        {edit && <div className="grid gap-4 sm:grid-cols-2"><Field label="Nome"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field><Field label="Usuário"><Input value={edit.username} onChange={(e) => setEdit({ ...edit, username: e.target.value })} autoComplete="username" /></Field><Field label="E-mail"><Input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field><Field label="Perfil"><select className="h-9 rounded-md border bg-background px-3 text-sm" value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value as Role })}>{Object.entries(roleLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label={edit.id ? "Nova senha (opcional)" : "Senha (mínimo 8 caracteres)"}><Input type="password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" /></Field><label className="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} />Usuário ativo</label></div>}
         <DialogFooter><Button variant="outline" onClick={() => setEdit(null)} disabled={saving}>Cancelar</Button><Button onClick={() => void submit()} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}Salvar</Button></DialogFooter>
       </DialogContent>
     </Dialog>

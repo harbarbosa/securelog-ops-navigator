@@ -2,7 +2,10 @@
  * Browser API client for the local SecureLog backend.
  * Set VITE_SECURELOG_API_URL=http://127.0.0.1:3333 when running the UI locally.
  */
-const baseUrl=(import.meta.env['VITE_SECURELOG_API_URL'] as string|undefined)?.replace(/\/$/,'')??'';
+const configuredBaseUrl=(import.meta.env['VITE_SECURELOG_API_URL'] as string|undefined)?.replace(/\/$/,'')??'';
+const baseUrl=configuredBaseUrl||(typeof window!=='undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:3333`
+  : 'http://127.0.0.1:3333');
 let runtimeBaseUrl="";
 export const setSecurelogApiBase=(url:string)=>{runtimeBaseUrl=url.replace(/\/$/,"");};
 export const securelogApiBase=baseUrl;
